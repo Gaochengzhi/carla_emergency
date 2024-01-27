@@ -1,0 +1,53 @@
+PortParameters:
+  carla_port: 2000
+  main_port: 6000
+  ego_port: 6001
+  pygame_port: 6002
+  traffic_agent_port: 9555
+  ego_vehicle_port: 9556
+
+PygameParameters:
+  screen_width: 1280
+  screen_height: 720
+  screen_fps: 30
+
+WorldParameters:
+  carla_timeout: 36.0
+  map_name: Town13
+  actor_active_distance: 500
+  hybrid_physics_radius: 50
+  tile_stream_distance: 200
+  synchronous_mode: True
+  frame_rate: 10
+
+WeatherParameters:
+  cloudiness: 0.0
+  precipitation: 0.0
+  sun_altitude_angle: 30.0
+  sun_azimuth_angle: 0
+
+EmergencyVehicleParameters:
+  ego_vehicle_type: firetruck 
+  local_planner_length: 30
+  trajectory_length: 50
+
+TrafficParameters:
+  bg_vehicle_type:
+    - vehicle.audi.a2
+    - vehicle.audi.tt
+    - vehicle.citroen.c3
+    - vehicle.ford.crown
+    - vehicle.jeep.wrangler_rubicon
+  num_vehicles: 800
+  spwan_points_distance: 50
+  area_limit:
+    min_x: 2000
+    max_x: 3000
+    min_y: 4200 
+    max_y: 5200
+
+DebugParameters:
+  camera_height: 160
+  draw_global_waypoint: False
+  draw_trajectory: False
+  draw_spawn_points: False

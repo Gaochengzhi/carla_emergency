@@ -1,0 +1,17 @@
+WorldParameters:
+  carla_timeout: 9.0
+  map_name: Town03
+  actor_active_distance: 100
+  hybrid_physics_radius: 30
+  tile_stream_distance: 100
+TrafficParameters:
+  num_vehicles: 100
+  spwan_points_distance: 15
+  area_limit:
+    min_x: -500
+    max_x: 5000
+    min_y: -500
+    max_y: 4000
+DebugParameters:
+  camera_height: 120
+

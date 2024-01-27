@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python: Current File (Debug)",
+            "type": "python",
+            "request": "launch",
+            // first change path to src/
+            "cwd": "${workspaceFolder}/src",
+            "program": "main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--debug",
+                "test",
+                "-t",
+                "town03",
+                "--log","all"
+            ]
+        }
+    ]
+}
