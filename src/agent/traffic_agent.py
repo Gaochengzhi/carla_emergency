@@ -41,8 +41,8 @@ class TrafficFlowManager(BaseAgent):
             self.config["PortParameters"]["ego_port"])
 
         while True:
-            info = self.communi_agent.receive_pire_message()
-            logging.debug(f"traffic flow received info: {info}")
+            # info = self.communi_agent.receive_pire_message()
+            # logging.debug(f"traffic flow received info: {info}")
             self.run_step()
             pass
 

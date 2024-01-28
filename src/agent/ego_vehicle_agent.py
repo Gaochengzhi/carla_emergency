@@ -27,7 +27,7 @@ class EgoVehicleAgent(BaseAgent):
         control.throttle = 3.0
         control.steer = 0.0
         while True:
-            self.send_destination(self.start_point, self.end_point)
+            # self.send_destination(self.start_point, self.end_point)
             self.run_step(control)
 
     @time_const(fps=1)
@@ -43,11 +43,12 @@ class EgoVehicleAgent(BaseAgent):
         # self.vehicle.apply_control(control)
 
     def set_communi_agent(self):
-        self.communi_agent.init_pire_sender(
-            self.config["PortParameters"]["ego_port"])
-        pass
+        # self.communi_agent.init_pire_sender(
+        #     self.config["PortParameters"]["ego_port"])
+        # pass
         # self.communi_agent.init_subscriber("router",
         #                                    self.config["PortParameters"]["traffic_agent_port"])
+        pass
 
     def create_vehicle(self, world, start_point, ego_vehicle_type):
         try:

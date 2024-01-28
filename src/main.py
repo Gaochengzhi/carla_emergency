@@ -34,6 +34,7 @@ def main():
         start_point, end_point, urban_waypoints, config).start()
 
     PyGameAgent(urban_waypoints, config).start()
+
     t = TrafficFlowManager(world, traffic_agent, urban_waypoints, config)
     t.start()
 
