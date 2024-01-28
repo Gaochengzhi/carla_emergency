@@ -30,9 +30,9 @@ class EgoVehicleAgent(BaseAgent):
             self.send_destination(self.start_point, self.end_point)
             self.run_step(control)
 
-    @time_const(fps=0.1)
+    @time_const(fps=1)
     def send_destination(self,start,end):
-        self.communi_agent.send_obj({
+        self.communi_agent.send_pire_message({
             "title": "router",
             "content": [start.id,end.id]
         })
@@ -43,6 +43,8 @@ class EgoVehicleAgent(BaseAgent):
         # self.vehicle.apply_control(control)
 
     def set_communi_agent(self):
+        self.communi_agent.init_pire_sender(
+            self.config["PortParameters"]["ego_port"])
         pass
         # self.communi_agent.init_subscriber("router",
         #                                    self.config["PortParameters"]["traffic_agent_port"])
