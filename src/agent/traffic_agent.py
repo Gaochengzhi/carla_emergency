@@ -29,7 +29,7 @@ class TrafficFlowManager(BaseAgent):
         self.create_bg_vehicles(
             world, num_vehicles, v_types, self.spawn_waypoints, traffic_agent)
 
-    @time_const(fps=1)
+    @time_const(fps=6)
     def run_step(self):
         print("traffic flow running")
         pass
@@ -37,13 +37,15 @@ class TrafficFlowManager(BaseAgent):
 
     def run(self):
         client, world = connect_to_server(self.config)
-        self.communi_agent.init_pire_receiver(
-            self.config["PortParameters"]["ego_port"])
+        # self.communi_agent.init_subscriber("EgoVehicle",
+        #                                      self.config["PortParameters"]["ego_port"])
 
         while True:
-            # info = self.communi_agent.receive_pire_message()
+            # info = self.communi_agent.rec_obj("EgoVehicle")
             # logging.debug(f"traffic flow received info: {info}")
-            self.run_step()
+            # logging.debug(f"{self.communi_agent.sub_sockets}")
+            # self.run_step()
+            
             pass
 
 

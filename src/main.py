@@ -63,7 +63,7 @@ def MainCommuicator(config):
     world_control_center = CommuniAgent("World")
     world_control_center.init_publisher(config["PortParameters"]["main_port"])
     world_control_center.init_subscriber("emergency_vehicle",
-                                         config["PortParameters"]["ego_port"])
+                                         6001)
     return world_control_center
 
 
