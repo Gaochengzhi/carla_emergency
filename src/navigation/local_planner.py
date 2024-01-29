@@ -11,7 +11,8 @@ import random
 
 import carla
 from navigation.controller import VehiclePIDController
-from util import draw_waypoints, get_speed
+from util import get_speed
+from view.debug_manager import draw_waypoints_arraw
 
 
 class RoadOption(IntEnum):
@@ -78,8 +79,10 @@ class LocalPlanner(object):
         self._dt = 1.0 / 20.0
         self._target_speed = 20.0  # Km/h
         self._sampling_radius = 2.0
-        self._args_lateral_dict = {'K_P': 1.95, 'K_I': 0.05, 'K_D': 0.2, 'dt': self._dt}
-        self._args_longitudinal_dict = {'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': self._dt}
+        self._args_lateral_dict = {'K_P': 1.95,
+                                   'K_I': 0.05, 'K_D': 0.2, 'dt': self._dt}
+        self._args_longitudinal_dict = {
+            'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': self._dt}
         self._max_throt = 0.75
         self._max_brake = 0.3
         self._max_steer = 0.8
@@ -134,8 +137,10 @@ class LocalPlanner(object):
 
         # Compute the current vehicle waypoint
         current_waypoint = self._map.get_waypoint(self._vehicle.get_location())
-        self.target_waypoint, self.target_road_option = (current_waypoint, RoadOption.LANEFOLLOW)
-        self._waypoints_queue.append((self.target_waypoint, self.target_road_option))
+        self.target_waypoint, self.target_road_option = (
+            current_waypoint, RoadOption.LANEFOLLOW)
+        self._waypoints_queue.append(
+            (self.target_waypoint, self.target_road_option))
 
     def set_speed(self, speed):
         """
@@ -166,7 +171,8 @@ class LocalPlanner(object):
         :return:
         """
         # check we do not overflow the queue
-        available_entries = self._waypoints_queue.maxlen - len(self._waypoints_queue)
+        available_entries = self._waypoints_queue.maxlen - \
+            len(self._waypoints_queue)
         k = min(available_entries, k)
 
         for _ in range(k):
@@ -238,7 +244,8 @@ class LocalPlanner(object):
         # Purge the queue of obsolete waypoints
         veh_location = self._vehicle.get_location()
         vehicle_speed = get_speed(self._vehicle) / 3.6
-        self._min_distance = self._base_min_distance + self._distance_ratio * vehicle_speed
+        self._min_distance = self._base_min_distance + \
+            self._distance_ratio * vehicle_speed
 
         num_waypoint_removed = 0
         for waypoint, _ in self._waypoints_queue:
@@ -267,10 +274,12 @@ class LocalPlanner(object):
             control.manual_gear_shift = False
         else:
             self.target_waypoint, self.target_road_option = self._waypoints_queue[0]
-            control = self._vehicle_controller.run_step(self._target_speed, self.target_waypoint)
+            control = self._vehicle_controller.run_step(
+                self._target_speed, self.target_waypoint)
 
         if debug:
-            draw_waypoints(self._vehicle.get_world(), [self.target_waypoint], 1.0)
+            draw_waypoints_arraw(self._vehicle.get_world(), [
+                                 self.target_waypoint], 1.0)
 
         return control
 

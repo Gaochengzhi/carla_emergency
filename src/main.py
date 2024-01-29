@@ -24,11 +24,10 @@ def main():
     main_com = MainCommuicator(config)
     main_com.send_obj("start")
 
-    set_bird_view(world, urban_waypoints[9].transform.location,
+    set_bird_view(world, urban_waypoints[1].transform.location,
                   config)
-    start_point = urban_waypoints[9]
-    end_point = urban_waypoints[100]
-
+    start_point = urban_waypoints[1]
+    end_point = urban_waypoints[200]
 
     EgoVehicleAgent(
         start_point, end_point, urban_waypoints, config).start()
@@ -45,7 +44,6 @@ def main():
         if info:
             logging.debug(f"main received info: {info}")
         world.tick()
-
 
     try:
         while True:

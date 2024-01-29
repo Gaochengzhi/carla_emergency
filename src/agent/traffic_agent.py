@@ -4,7 +4,7 @@ import logging
 import carla
 from agent.ego_vehicle_agent import EgoVehicleAgent
 from view.debug_manager import DebugManager as debug
-from util import spawn_vehicle, connect_to_server, time_const
+from util import spawn_vehicle, connect_to_server, time_const, batch_process_vehicles, get_ego_vehicle
 from agent.baseAgent import BaseAgent
 import time
 
@@ -29,11 +29,22 @@ class TrafficFlowManager(BaseAgent):
         self.create_bg_vehicles(
             world, num_vehicles, v_types, self.spawn_waypoints, traffic_agent)
 
-    @time_const(fps=6)
-    def run_step(self):
-        print("traffic flow running")
+    def change_lane(self, world, vehicle, ego):
         pass
 
+    @time_const(fps=36)
+    def run_step(self, world):
+        # info = self.communi_agent.rec_obj("ss")
+        # logging.debug(f"traffic flow received info: {info}")
+        current_time = time.time()
+        ego_vehicle = get_ego_vehicle(world)
+        res = batch_process_vehicles(world, ego_vehicle, 200,
+                                     [-100, 100], self.change_lane)
+        now = time.time()
+        logging.debug(
+            f"traffic flow run step time: {now - current_time}, {len(res)}")
+
+        pass
 
     def run(self):
         client, world = connect_to_server(self.config)
@@ -49,7 +60,9 @@ class TrafficFlowManager(BaseAgent):
             pass
 
 
+            self.run_step(world)
 
+            pass
 
     def choose_a_point(self, waypoint_list):
         choosen_waypoint = random.choice(waypoint_list)
