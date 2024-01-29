@@ -123,8 +123,8 @@ celerybeat.pid
 .env
 .venv
 env/
-log/
-data/
+log/*
+./data/*
 venv/
 ENV/
 env.bak/

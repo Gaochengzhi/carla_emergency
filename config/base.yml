@@ -4,7 +4,7 @@ PortParameters:
   ego_port: 6001
   pygame_port: 6002
   traffic_agent_port: 9555
-  ego_vehicle_port: 9556
+  ego_vehicle_port: 9557
 
 PygameParameters:
   screen_width: 1280
@@ -30,6 +30,7 @@ EmergencyVehicleParameters:
   ego_vehicle_type: firetruck 
   local_planner_length: 30
   trajectory_length: 50
+  global_route_resolution: 100
 
 TrafficParameters:
   bg_vehicle_type:
