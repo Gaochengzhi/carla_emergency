@@ -1,5 +1,4 @@
 import http.server
-import socket
 import socketserver
 import threading
 import requests
@@ -7,6 +6,7 @@ import uuid
 import pickle
 from io import BytesIO
 import numpy as np
+
 
 class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
     message = None
@@ -26,6 +26,7 @@ class SimpleHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
 
+
 class CommuniAgent:
     def __init__(self, name: str):
         self.type = name
@@ -36,7 +37,6 @@ class CommuniAgent:
     def start_server(self, port):
         handler = SimpleHTTPRequestHandler
         self.httpd = socketserver.TCPServer(("", port), handler)
-        self.httpd.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.httpd.allow_reuse_address = True
         self.server_thread = threading.Thread(target=self.httpd.serve_forever)
         self.server_thread.start()
@@ -59,17 +59,18 @@ class CommuniAgent:
 
     def close(self):
         self.stop_server()
+        exit(0)
+
 
 # 使用示例
 # 创建并启动服务器
 agent = CommuniAgent("TestAgent")
-agent.start_server(8000)
+agent.start_server(8302)
 
 # 发送和接收对象
 test_obj = {'key': np.random.rand(10, 10)}
-agent.send_message("http://localhost:8000", test_obj)
-received_obj = agent.get_message("http://localhost:8000")
+agent.send_message("http://localhost:8302", test_obj)
+received_obj = agent.get_message("http://localhost:8302")
 print("Received object:", received_obj)
 
-# 关闭服务器
 agent.close()

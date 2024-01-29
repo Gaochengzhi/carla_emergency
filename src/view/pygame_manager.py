@@ -18,12 +18,33 @@ class PyGameAgent(BaseAgent):
         self.pygame_frame = None
         self.camera = None
         self.width = config["PygameParameters"]["screen_width"]
+        self.width_main = config["PygameParameters"]["screen_main_width"]
         self.height = config["PygameParameters"]["screen_height"]
+        self.height_main = config["PygameParameters"]["screen_main_height"]
         self.vehicle = None
         self.screen = None
         self.font = None
         self.clock = None
         self.text_surface = None
+
+        self.pygame_frame_x = (self.width - self.width_main) // 2
+        self.pygame_frame_y = (self.height - self.height_main) // 2
+        self.pygame_frame_rect = pygame.Rect(
+            self.pygame_frame_x, self.pygame_frame_y, self.width_main, self.height_main)
+
+        self.graph_rect = pygame.Rect(10, 10, 200, 100)
+        self.graph_color = (0, 255, 0)
+        self.center_x = self.width // 2
+        self.center_y = self.height // 2
+        self.left_rect1 = pygame.Rect(0, 0, self.pygame_frame_x, self.center_y)
+        self.left_rect2 = pygame.Rect(
+            0, self.center_y, self.pygame_frame_x, self.center_y)
+        self.right_rect1 = pygame.Rect(
+            self.center_x + self.width_main // 2, 0, self.pygame_frame_x, self.center_y)
+        self.right_rect2 = pygame.Rect(
+            self.center_x + self.width_main // 2, self.center_y, self.pygame_frame_x, self.center_y)
+
+        self.fps_history = []
 
     def run(self):
         client, world = connect_to_server(self.config)
@@ -33,6 +54,9 @@ class PyGameAgent(BaseAgent):
         self.clock = pygame.time.Clock()
         self.text_surface = self.font.render(
             'Started Emergency Simualtion', True, BLACK)  # White text
+        pygame.draw.rect(self.screen, (0, 255, 0), self.right_rect1)
+        pygame.draw.rect(self.screen, (0, 0, 255), self.left_rect2)
+        pygame.draw.rect(self.screen, (255, 255, 0), self.right_rect2)
 
         while True:
             self.run_step(world)
@@ -48,8 +72,8 @@ class PyGameAgent(BaseAgent):
     def init_game_camera(self, world, urban_waypoints, vehicle):
         camera_bp = world.get_blueprint_library().find("sensor.camera.rgb")
         camera_bp.set_attribute(
-            'image_size_x', str(self.width))
-        camera_bp.set_attribute('image_size_y', str(self.height))
+            'image_size_x', str(self.width_main))
+        camera_bp.set_attribute('image_size_y', str(self.height_main))
         camera_bp.set_attribute('fov', '90')
         # camera_location = waypoints_center(urban_waypoints)
         camera_location = carla.Location(x=0, y=0, z=0)
@@ -76,16 +100,35 @@ class PyGameAgent(BaseAgent):
     def update_pygame_frame(self, image):
         self.pygame_frame = self.image2pygame_surface(image)
 
+    def draw_fps_line_chart(self):
+        if len(self.fps_history) > 1:
+            # points = [(i + self.center_x, int(self.center_y - fps)) for i, fps in enumerate(self.fps_history)]
+            scaled_points = [(i + 10, int(self.center_y - fps * 10) - 10)
+                             for i, fps in enumerate(self.fps_history)]
+            pygame.draw.line(self.screen, (0, 0, 0),
+                             (10, self.center_y - 10), (10, 0), 2)
+            pygame.draw.line(self.screen, (0, 0, 0), (10, self.center_y - 10),
+                             (self.pygame_frame_x, self.center_y - 10), 2)
+            # pygame.draw.lines(self.screen, (0, 255, 0), False, points)
+            pygame.draw.lines(self.screen, (0, 255, 0), False, scaled_points)
+
     def run_step(self, world):
         dt = self.clock.tick()
         frame_rate = self.clock.get_fps()
+        self.fps_history.append(frame_rate)
+        if len(self.fps_history) > 270:
+            self.fps_history = self.fps_history[-270:]
         world.wait_for_tick()
         if self.pygame_frame is not None:
-            self.screen.blit(self.pygame_frame, (0, 0))
-            self.screen.blit(self.text_surface, (10, 10))
+            self.screen.fill((255, 255, 255))
+            self.screen.blit(self.pygame_frame, self.pygame_frame_rect.topleft)
+            self.draw_fps_line_chart()
+            # pygame.draw.rect(self.screen, (255, 0, 0), self.left_rect1)
+
             fps_text = self.font.render(
-                f'FPS: {frame_rate:.2f}', True, RED)
-            self.screen.blit(fps_text, (10, 40))
+                f'frame_rate:{frame_rate}', True, (255, 0, 0))
+            self.screen.blit(fps_text, (self.center_x, 40))
+
             pygame.display.flip()
 
     def close(self):

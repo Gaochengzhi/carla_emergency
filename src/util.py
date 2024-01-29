@@ -9,6 +9,7 @@ import random
 import carla
 import math
 
+
 class Singleton(type):
     _instances = {}
 
@@ -68,6 +69,7 @@ def get_ego_vehicle(world):
                 return actor
     return None
 
+
 def time_const(fps):
     def decorator(func):
         @functools.wraps(func)
@@ -85,23 +87,22 @@ def time_const(fps):
     return decorator
 
 # turn carla way point into NetworkX graph point
+
+
 def waypoint_to_graph_point(waypoint):
     return (waypoint.transform.location.x, waypoint.transform.location.y, waypoint.transform.location.z)
 
-def draw_waypoints(world, waypoints, z=0.5):
-    """
-    Draw a list of waypoints at a certain height given in z.
 
-        :param world: carla.world object
-        :param waypoints: list or iterable container with the waypoints to draw
-        :param z: height in meters
-    """
-    for wpt in waypoints:
-        wpt_t = wpt.transform
-        begin = wpt_t.location + carla.Location(z=z)
-        angle = math.radians(wpt_t.rotation.yaw)
-        end = begin + carla.Location(x=math.cos(angle), y=math.sin(angle))
-        world.debug.draw_arrow(begin, end, arrow_size=0.3, life_time=90.0)
+def batch_process_vehicles(world, ego,  max_distance, angle, func, *args, **kwargs):
+
+    vehicles = []
+    for actor in world.get_actors():
+        if actor.type_id.startswith("vehicle"):
+            if is_within_distance(actor.get_transform(), ego.get_transform(), max_distance, angle_interval=angle):
+                processed_vehicle = func(
+                    world, actor, ego, *args, **kwargs)
+                vehicles.append(processed_vehicle)
+    return vehicles
 
 
 def get_speed(vehicle):
@@ -114,6 +115,7 @@ def get_speed(vehicle):
     vel = vehicle.get_velocity()
 
     return 3.6 * math.sqrt(vel.x ** 2 + vel.y ** 2 + vel.z ** 2)
+
 
 def get_trafficlight_trigger_location(traffic_light):
     """
@@ -133,7 +135,8 @@ def get_trafficlight_trigger_location(traffic_light):
     area_loc = base_transform.transform(traffic_light.trigger_volume.location)
     area_ext = traffic_light.trigger_volume.extent
 
-    point = rotate_point(carla.Vector3D(0, 0, area_ext.z), math.radians(base_rot))
+    point = rotate_point(carla.Vector3D(
+        0, 0, area_ext.z), math.radians(base_rot))
     point_location = area_loc + carla.Location(x=point.x, y=point.y)
 
     return carla.Location(point_location.x, point_location.y, point_location.z)
@@ -174,7 +177,8 @@ def is_within_distance(target_transform, reference_transform, max_distance, angl
 
     fwd = reference_transform.get_forward_vector()
     forward_vector = np.array([fwd.x, fwd.y])
-    angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+    angle = math.degrees(math.acos(
+        np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
 
     return min_angle < angle < max_angle
 
@@ -188,11 +192,14 @@ def compute_magnitude_angle(target_location, current_location, orientation):
         :param orientation: orientation of the reference object
         :return: a tuple composed by the distance to the object and the angle between both objects
     """
-    target_vector = np.array([target_location.x - current_location.x, target_location.y - current_location.y])
+    target_vector = np.array(
+        [target_location.x - current_location.x, target_location.y - current_location.y])
     norm_target = np.linalg.norm(target_vector)
 
-    forward_vector = np.array([math.cos(math.radians(orientation)), math.sin(math.radians(orientation))])
-    d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+    forward_vector = np.array(
+        [math.cos(math.radians(orientation)), math.sin(math.radians(orientation))])
+    d_angle = math.degrees(math.acos(
+        np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
 
     return (norm_target, d_angle)
 

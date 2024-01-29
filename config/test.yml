@@ -1,5 +1,5 @@
 WorldParameters:
-  carla_timeout: 9.0
+  carla_timeout: 39.0
   map_name: Town03
   actor_active_distance: 100
   hybrid_physics_radius: 30

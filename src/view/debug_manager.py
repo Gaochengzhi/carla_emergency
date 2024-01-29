@@ -1,4 +1,5 @@
 import carla
+import math
 
 
 class DebugManager:
@@ -32,18 +33,34 @@ def set_bird_view(world, location, config):
     )
 
 
-def draw_waypoints(world, waypoints, color=carla.Color(255, 0, 0), lt=0.09):
+def draw_waypoints_arraw(world, waypoints, z=2, color=carla.Color(255, 0, 0), life_time=0.1):
+    """
+    Draw a list of waypoints at a certain height given in z.
+
+        :param world: carla.world object
+        :param waypoints: list or iterable container with the waypoints to draw
+        :param z: height in meters
+    """
+    for wpt in waypoints:
+        wpt_t = wpt.transform
+        begin = wpt_t.location + carla.Location(z=z)
+        angle = math.radians(wpt_t.rotation.yaw)
+        end = begin + carla.Location(x=math.cos(angle), y=math.sin(angle))
+        world.debug.draw_arrow(begin, end, arrow_size=0.3, life_time=life_time)
+
+
+def draw_waypoints(world, waypoints, z=2, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
     """
     draw a list of waypoints
     """
     for waypoint in waypoints:
         world.debug.draw_point(
-            waypoint.transform.location, size=lt, color=color, life_time=-1
+            waypoint.transform.location, size=size, color=color, life_time=life_time
         )
 
 
-def draw_strings(world, strings, location, color=carla.Color(255, 0, 0), lt=0.09):
+def draw_strings(world, strings, location, color=carla.Color(255, 0, 0), life_time=0.09):
     for string in strings:
         world.debug.draw_string(
-            location, string, draw_shadow=False, color=color, life_time=lt
+            location, string, draw_shadow=False, color=color, life_time=life_time
         )

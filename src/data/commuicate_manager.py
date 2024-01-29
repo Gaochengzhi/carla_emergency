@@ -45,7 +45,8 @@ class CommuniAgent:
             msg = self.sub_sockets[sub_name].recv_pyobj()
             return msg
         else:
-            raise ValueError(f"No subscriber with name '{sub_name}' initialized.")
+            raise ValueError(
+                f"No subscriber with name '{sub_name}' initialized.")
 
     def close(self):
         self.pub_socket.close()
