@@ -37,14 +37,14 @@ class TrafficFlowManager(BaseAgent):
 
     def run(self):
         client, world = connect_to_server(self.config)
-        # self.communi_agent.init_subscriber("EgoVehicle",
-        #                                      self.config["PortParameters"]["ego_port"])
+        self.communi_agent.init_subscriber("EgoVehicle",
+                                             self.config["PortParameters"]["ego_port"])
 
         while True:
-            # info = self.communi_agent.rec_obj("EgoVehicle")
-            # logging.debug(f"traffic flow received info: {info}")
-            # logging.debug(f"{self.communi_agent.sub_sockets}")
-            # self.run_step()
+            info = self.communi_agent.rec_obj("EgoVehicle")
+            logging.debug(f"traffic flow received info: {info}")
+            logging.debug(f"{info}")
+            self.run_step()
             
             pass
 

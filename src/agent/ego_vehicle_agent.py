@@ -26,7 +26,7 @@ class EgoVehicleAgent(BaseAgent):
 
     def run(self):
         client, world = connect_to_server(self.config)
-        # self.set_communi_agent()
+        self.set_communi_agent()
         self.vehicle = self.create_vehicle(world, self.start_point,
                                            self.ego_type)
         global_route_planner = GlobalRoutePlanner(world.get_map(), self.router_resolution)
@@ -41,7 +41,7 @@ class EgoVehicleAgent(BaseAgent):
         control.throttle = 3.0
         control.steer = 0.0
         while True:
-            # self.send_destination(self.start_point, self.end_point)
+            self.send_destination(self.start_point, self.end_point)
             self.run_step(control)
 
     @time_const(fps=3)
