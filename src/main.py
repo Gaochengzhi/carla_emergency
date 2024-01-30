@@ -37,7 +37,7 @@ def main():
     t = TrafficFlowManager(world, traffic_agent, urban_waypoints, config)
     t.start()
 
-    @time_const(fps=25)
+    @time_const(fps=95)
     def run_step(world):
         main_com.send_obj("on")
         info = main_com.rec_obj("emergency_vehicle")

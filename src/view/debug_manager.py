@@ -1,5 +1,6 @@
 import carla
 import math
+import time
 
 
 class DebugManager:
@@ -56,6 +57,14 @@ def draw_waypoints(world, waypoints, z=2, color=carla.Color(255, 0, 0), size=0.0
     for waypoint in waypoints:
         world.debug.draw_point(
             waypoint.transform.location, size=size, color=color, life_time=life_time
+        )
+def draw_transforms(world, transforms, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
+    """
+    draw a list of transforms
+    """
+    for transform in transforms:
+        world.debug.draw_point(
+            transform.location, size=size, color=color, life_time=life_time
         )
 
 

@@ -97,7 +97,7 @@ def batch_process_vehicles(world, ego,  max_distance, angle, func, *args, **kwar
 
     vehicles = []
     for actor in world.get_actors():
-        if actor.type_id.startswith("vehicle"):
+        if actor.type_id.startswith("vehicle") and actor.attributes["role_name"] != "hero":
             if is_within_distance(actor.get_transform(), ego.get_transform(), max_distance, angle_interval=angle):
                 processed_vehicle = func(
                     world, actor, ego, *args, **kwargs)

@@ -52,16 +52,6 @@ class VehiclePIDController():
         self._lat_controller = PIDLateralController(self._vehicle, offset, **args_lateral)
 
     def run_step(self, target_speed, waypoint):
-        """
-        Execute one step of control invoking both lateral and longitudinal
-        PID controllers to reach a target waypoint
-        at a given target_speed.
-
-            :param target_speed: desired vehicle speed
-            :param waypoint: target location encoded as a waypoint
-            :return: distance (in meters) to the waypoint
-        """
-
         acceleration = self._lon_controller.run_step(target_speed)
         current_steering = self._lat_controller.run_step(waypoint)
         control = carla.VehicleControl()
@@ -170,6 +160,11 @@ class PIDLongitudinalController():
         self._k_d = K_D
         self._dt = dt
 
+class Vector3D:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
 
 class PIDLateralController():
     """
@@ -197,29 +192,26 @@ class PIDLateralController():
         self._e_buffer = deque(maxlen=10)
 
     def run_step(self, waypoint):
-        """
-        Execute one step of lateral control to steer
-        the vehicle towards a certain waypoin.
-
-            :param waypoint: target waypoint
-            :return: steering control in the range [-1, 1] where:
-            -1 maximum steering to left
-            +1 maximum steering to right
-        """
         return self._pid_control(waypoint, self._vehicle.get_transform())
 
     def set_offset(self, offset):
         """Changes the offset"""
         self._offset = offset
+    def getRightVector(rotation):
+        cy = math.cos(math.radians(rotation.yaw))
+        sy = math.sin(math.radians(rotation.yaw))
+        cr = math.cos(math.radians(rotation.roll))
+        sr = math.sin(math.radians(rotation.roll))
+        cp = math.cos(math.radians(rotation.pitch))
+        sp = math.sin(math.radians(rotation.pitch))
+        
+        x = cy * sp * sr - sy * cr
+        y = sy * sp * sr + cy * cr
+        z = -cp * sr
+        return Vector3D(x, y, z)
 
     def _pid_control(self, waypoint, vehicle_transform):
-        """
-        Estimate the steering angle of the vehicle based on the PID equations
 
-            :param waypoint: target waypoint
-            :param vehicle_transform: current transform of the vehicle
-            :return: steering control in the range [-1, 1]
-        """
         # Get the ego's location and forward vector
         ego_loc = vehicle_transform.location
         v_vec = vehicle_transform.get_forward_vector()
@@ -228,12 +220,12 @@ class PIDLateralController():
         # Get the vector vehicle-target_wp
         if self._offset != 0:
             # Displace the wp to the side
-            w_tran = waypoint.transform
-            r_vec = w_tran.get_right_vector()
+            w_tran = waypoint
+            r_vec = self.getRightVector(waypoint.rotation)
             w_loc = w_tran.location + carla.Location(x=self._offset*r_vec.x,
                                                          y=self._offset*r_vec.y)
         else:
-            w_loc = waypoint.transform.location
+            w_loc = waypoint.location
 
         w_vec = np.array([w_loc.x - ego_loc.x,
                           w_loc.y - ego_loc.y,

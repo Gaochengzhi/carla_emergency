@@ -1,97 +1,69 @@
 import pygame
 import time
 import numpy as np
-from agent.baseAgent import BaseAgent
+import collections
 import carla
-from util import waypoints_center, get_ego_vehicle, connect_to_server
-from view.color import WHITE, RED, GREEN, BLUE, BLACK, YELLOW
-import os
-
+from agent.baseAgent import BaseAgent
+from util import waypoints_center, get_ego_vehicle, connect_to_server, batch_process_vehicles
+from view.color import WHITE, RED, GREEN, BLUE, BLACK, YELLOW, PURPLE
 
 class PyGameAgent(BaseAgent):
     def __init__(self, urban_waypoints, config):
-        BaseAgent.__init__(self, "PyGame", config,
-                           config["PortParameters"]["pygame_port"])
+        super().__init__("PyGame", config, config["PortParameters"]["pygame_port"])
         self.config = config
         self.urban_waypoints = urban_waypoints
-        # pyGame Instence
-        self.pygame_frame = None
-        self.camera = None
+        self.init_pygame_parameters(config)
+        self.init_data_histories()
+
+    def init_pygame_parameters(self, config):
         self.width = config["PygameParameters"]["screen_width"]
-        self.width_main = config["PygameParameters"]["screen_main_width"]
         self.height = config["PygameParameters"]["screen_height"]
-        self.height_main = config["PygameParameters"]["screen_main_height"]
-        self.vehicle = None
-        self.screen = None
-        self.font = None
-        self.clock = None
-        self.text_surface = None
+        self.screen_main_width = config["PygameParameters"]["screen_main_width"]
+        self.screen_main_height = config["PygameParameters"]["screen_main_height"]
+        self.pygame_frame_rect = pygame.Rect((self.width - self.screen_main_width) // 2, 
+                                             (self.height - self.screen_main_height) // 2, 
+                                             self.screen_main_width, 
+                                             self.screen_main_height)
+        self.left_rects = [pygame.Rect(0, i * self.height // 4, self.screen_main_width // 4, self.height // 4) 
+                           for i in range(4)]
+        self.graph_colors = [RED, GREEN, BLUE, PURPLE]
 
-        self.pygame_frame_x = (self.width - self.width_main) // 2
-        self.pygame_frame_y = (self.height - self.height_main) // 2
-        self.pygame_frame_rect = pygame.Rect(
-            self.pygame_frame_x, self.pygame_frame_y, self.width_main, self.height_main)
+    def init_data_histories(self):
+        self.pygame_frame = []
+        self.fps_history = collections.deque(maxlen=100)
+        self.acceleration_history = collections.deque(maxlen=100)
+        self.vertical_acceleration_history = collections.deque(maxlen=100)
+        self.yaw_rate_history = collections.deque(maxlen=100)
+        self.lateral_roll_angle_history = collections.deque(maxlen=100)
 
-        self.graph_rect = pygame.Rect(10, 10, 200, 100)
-        self.graph_color = (0, 255, 0)
-        self.center_x = self.width // 2
-        self.center_y = self.height // 2
-        self.left_rect1 = pygame.Rect(0, 0, self.pygame_frame_x, self.center_y)
-        self.left_rect2 = pygame.Rect(
-            0, self.center_y, self.pygame_frame_x, self.center_y)
-        self.right_rect1 = pygame.Rect(
-            self.center_x + self.width_main // 2, 0, self.pygame_frame_x, self.center_y)
-        self.right_rect2 = pygame.Rect(
-            self.center_x + self.width_main // 2, self.center_y, self.pygame_frame_x, self.center_y)
-
-        self.fps_history = []
-
-    def run(self):
-        client, world = connect_to_server(self.config)
-        self.init_game_veiew(world, self.urban_waypoints, self.config)
+    def init_game_view(self, world, urban_waypoints, config):
+        pygame.init()
         self.screen = pygame.display.set_mode((self.width, self.height))
         self.font = pygame.font.Font(None, 20)
         self.clock = pygame.time.Clock()
-        self.text_surface = self.font.render(
-            'Started Emergency Simualtion', True, BLACK)  # White text
-        pygame.draw.rect(self.screen, (0, 255, 0), self.right_rect1)
-        pygame.draw.rect(self.screen, (0, 0, 255), self.left_rect2)
-        pygame.draw.rect(self.screen, (255, 255, 0), self.right_rect2)
-
-        while True:
-            self.run_step(world)
-
-    def init_game_veiew(self, world, urban_waypoints, config):
-        pygame.init()
+        self.vehicle = get_ego_vehicle(world)
         while self.vehicle is None:
             self.vehicle = get_ego_vehicle(world)
             time.sleep(0.1)
-            # world.wait_for_tick()
+
         self.init_game_camera(world, urban_waypoints, self.vehicle)
 
     def init_game_camera(self, world, urban_waypoints, vehicle):
         camera_bp = world.get_blueprint_library().find("sensor.camera.rgb")
-        camera_bp.set_attribute(
-            'image_size_x', str(self.width_main))
-        camera_bp.set_attribute('image_size_y', str(self.height_main))
+        camera_bp.set_attribute('image_size_x', str(self.screen_main_width))
+        camera_bp.set_attribute('image_size_y', str(self.screen_main_height))
         camera_bp.set_attribute('fov', '90')
-        # camera_location = waypoints_center(urban_waypoints)
         camera_location = carla.Location(x=0, y=0, z=0)
         self.camera = world.spawn_actor(
             camera_bp,
-            carla.Transform(
-                camera_location +
-                carla.Location(z=100),
-                carla.Rotation(pitch=-90),
-            ),
+            carla.Transform(camera_location + carla.Location(z=100), carla.Rotation(pitch=-90)),
             attach_to=vehicle,
         )
         self.camera.listen(self.update_pygame_frame)
 
     def image2pygame_surface(self, image):
         array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-        array = np.reshape(
-            array, (image.height, image.width, 4))  # RGBA format
+        array = np.reshape(array, (image.height, image.width, 4))  # RGBA format
         array = array[:, :, :3]  # Ignore alpha for RGB
         array = array[:, :, ::-1]  # Convert from BGR to RGB
         surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
@@ -100,37 +72,62 @@ class PyGameAgent(BaseAgent):
     def update_pygame_frame(self, image):
         self.pygame_frame = self.image2pygame_surface(image)
 
-    def draw_fps_line_chart(self):
-        if len(self.fps_history) > 1:
-            # points = [(i + self.center_x, int(self.center_y - fps)) for i, fps in enumerate(self.fps_history)]
-            scaled_points = [(i + 10, int(self.center_y - fps * 10) - 10)
-                             for i, fps in enumerate(self.fps_history)]
-            pygame.draw.line(self.screen, (0, 0, 0),
-                             (10, self.center_y - 10), (10, 0), 2)
-            pygame.draw.line(self.screen, (0, 0, 0), (10, self.center_y - 10),
-                             (self.pygame_frame_x, self.center_y - 10), 2)
-            # pygame.draw.lines(self.screen, (0, 255, 0), False, points)
-            pygame.draw.lines(self.screen, (0, 255, 0), False, scaled_points)
+    def draw_data_curve(self, data_history, color, rect):
+        if len(data_history) > 1:
+            max_value = max(data_history)
+            min_value = min(data_history)
+            range_value = max_value - min_value if max_value - min_value else 1
+            scaled_points = [(rect.x + i * rect.width / (len(data_history) - 1),
+                              rect.y + rect.height - (data - min_value) / range_value * rect.height)
+                             for i, data in enumerate(data_history)]
+            pygame.draw.aalines(self.screen, color, False, scaled_points)
 
     def run_step(self, world):
         dt = self.clock.tick()
         frame_rate = self.clock.get_fps()
         self.fps_history.append(frame_rate)
-        if len(self.fps_history) > 270:
-            self.fps_history = self.fps_history[-270:]
-        world.wait_for_tick()
-        if self.pygame_frame is not None:
-            self.screen.fill((255, 255, 255))
+        if len(self.fps_history) > 100:
+            self.fps_history.popleft()
+        if self.pygame_frame:
+            self.screen.fill(WHITE)
             self.screen.blit(self.pygame_frame, self.pygame_frame_rect.topleft)
-            self.draw_fps_line_chart()
-            # pygame.draw.rect(self.screen, (255, 0, 0), self.left_rect1)
 
-            fps_text = self.font.render(
-                f'frame_rate:{frame_rate}', True, (255, 0, 0))
-            self.screen.blit(fps_text, (self.center_x, 40))
+        # Draw curves for each data type
+        data_histories = [self.acceleration_history, self.vertical_acceleration_history, 
+                          self.yaw_rate_history, self.lateral_roll_angle_history]
+        for i, history in enumerate(data_histories):
+            self.draw_data_curve(history, self.graph_colors[i], self.left_rects[i])
 
-            pygame.display.flip()
+        ego_vehicle = get_ego_vehicle(world)
+        self.get_vehicle_data(ego_vehicle)
+        batch_process_vehicles(world, ego_vehicle, 200, [-100, 100], self.change_lane)
+
+        fps_text = self.font.render(f'Frame Rate: {frame_rate:.2f} FPS', True, BLACK)
+        self.screen.blit(fps_text, (10, 10))
+        pygame.display.flip()
+
+    def get_vehicle_data(self, ego_vehicle):
+        acceleration = ego_vehicle.get_acceleration()
+        angular_velocity = ego_vehicle.get_angular_velocity()
+        transform = ego_vehicle.get_transform()
+
+        self.acceleration_history.append(acceleration.length())
+        self.vertical_acceleration_history.append(acceleration.x)
+        self.yaw_rate_history.append(angular_velocity.z)
+        self.lateral_roll_angle_history.append(transform.rotation.roll)
+
+    def change_lane(self, world, vehicle, ego):
+        pass
+
+    def run(self):
+        client, world = connect_to_server(self.config)
+        self.init_game_view(world, self.urban_waypoints, self.config)
+        while True:
+            self.run_step(world)
 
     def close(self):
         pygame.quit()
-        self.camera.destroy()
+        if self.camera:
+            self.camera.destroy()
+
+# The rest of your original code...

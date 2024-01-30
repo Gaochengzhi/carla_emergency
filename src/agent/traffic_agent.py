@@ -36,13 +36,13 @@ class TrafficFlowManager(BaseAgent):
     def run_step(self, world):
         # info = self.communi_agent.rec_obj("ss")
         # logging.debug(f"traffic flow received info: {info}")
-        current_time = time.time()
+        # current_time = time.time()
         ego_vehicle = get_ego_vehicle(world)
         res = batch_process_vehicles(world, ego_vehicle, 200,
                                      [-100, 100], self.change_lane)
-        now = time.time()
-        logging.debug(
-            f"traffic flow run step time: {now - current_time}, {len(res)}")
+        # now = time.time()
+        # logging.debug(
+        #     f"traffic flow run step time: {now - current_time}, {len(res)}")
 
         pass
 
@@ -53,9 +53,8 @@ class TrafficFlowManager(BaseAgent):
 
         while True:
             info = self.communi_agent.rec_obj("EgoVehicle")
-            logging.debug(f"traffic flow received info: {info}")
-            logging.debug(f"{info}")
-            self.run_step()
+            # logging.debug(f"traffic flow received info: {info}")
+            self.run_step(world)
             
             pass
 
