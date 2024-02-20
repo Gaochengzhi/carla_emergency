@@ -11,7 +11,66 @@ import numpy as np
 import carla
 from util import get_speed
 
+import collections
+import carla
 
+class VehiclePIDControllers():
+    def __init__(self, vehicle, args_lateral, args_longitudinal, offset=0, max_throttle=0.35, max_brake=0.3, max_steering=0.5, history_size=5):
+        self.max_brake = max_brake
+        self.max_throt = max_throttle
+        self.max_steer = max_steering
+
+        self._vehicle = vehicle
+        self._world = self._vehicle.get_world()
+        self.control_history = collections.deque(maxlen=history_size)
+        self._lon_controller = PIDLongitudinalController(self._vehicle, **args_longitudinal)
+        self._lat_controller = PIDLateralController(self._vehicle, offset, **args_lateral)
+
+    def run_step(self, target_speed, waypoint):
+        # Compute control for the next waypoint
+        control = self._compute_control(target_speed, waypoint)
+
+        # Smooth the control
+        if self.control_history:
+            control = self._smooth_control(control)
+
+        self.control_history.append(control)
+        return control
+
+    def _compute_control(self, target_speed, waypoint):
+        acceleration = self._lon_controller.run_step(target_speed)
+        current_steering = self._lat_controller.run_step(waypoint)
+        control = carla.VehicleControl()
+
+        # Throttle and Brake
+        if acceleration >= 0.0:
+            control.throttle = min(acceleration, self.max_throt)
+            control.brake = 0.0
+        else:
+            control.throttle = 0.0
+            control.brake = min(abs(acceleration), self.max_brake)
+
+        # Steering
+        control.steer = min(max(current_steering, -self.max_steer), self.max_steer)
+
+        control.hand_brake = False
+        control.manual_gear_shift = False
+
+        return control
+
+    def _smooth_control(self, current_control):
+        # Averages the current control with the past control values for smoothing
+        avg_control = carla.VehicleControl()
+        for past_control in self.control_history:
+            avg_control.throttle += past_control.throttle
+            avg_control.brake += past_control.brake
+            avg_control.steer += past_control.steer
+
+        avg_control.throttle = (avg_control.throttle + current_control.throttle) / (len(self.control_history) + 1)
+        avg_control.brake = (avg_control.brake + current_control.brake) / (len(self.control_history) + 1)
+        avg_control.steer = (avg_control.steer + current_control.steer) / (len(self.control_history) + 1)
+
+        return avg_control
 class VehiclePIDController():
     """
     VehiclePIDController is the combination of two PID controllers
@@ -20,8 +79,8 @@ class VehiclePIDController():
     """
 
 
-    def __init__(self, vehicle, args_lateral, args_longitudinal, offset=0, max_throttle=0.75, max_brake=0.3,
-                 max_steering=0.8):
+    def __init__(self, vehicle, args_lateral, args_longitudinal, offset=0, max_throttle=0.35, max_brake=0.3,
+                 max_steering=0.5):
         """
         Constructor method.
 

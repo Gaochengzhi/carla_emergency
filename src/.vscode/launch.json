@@ -1,10 +1,9 @@
 {
     "version": "0.2.0",
     "configurations": [
-
         {
             "name": "Python: Current File (Debug)",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "main.py",
             "console": "integratedTerminal",
@@ -12,8 +11,6 @@
             "args": [
                 "--debug",
                 "test",
-                "-t",
-                "town03"
             ]
         }
     ]

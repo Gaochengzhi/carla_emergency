@@ -1,102 +1,124 @@
 import random
-
+import math
+import os
 import logging
 import carla
 from agent.ego_vehicle_agent import EgoVehicleAgent
 from view.debug_manager import DebugManager as debug
-from util import spawn_vehicle, connect_to_server, time_const, batch_process_vehicles, get_ego_vehicle
+from util import  connect_to_server, time_const, batch_process_vehicles, get_speed
 from agent.baseAgent import BaseAgent
 import time
-
+from tools.config_manager import config as cfg
 
 class TrafficFlowManager(BaseAgent):
     def __init__(
         self,
-        world,
-        traffic_agent,
-        spawn_waypoints,
-        config,
     ) -> None:
-        self.init_traffic_flow(world, traffic_agent, spawn_waypoints, config)
-        BaseAgent.__init__(self, "TrafficFlow", config,
-                           config["PortParameters"]["traffic_agent_port"])
+        self.config = cfg.config
+        BaseAgent.__init__(self, "TrafficFlow", 
+                           self.config["traffic_agent_port"])
 
-    def init_traffic_flow(self, world, traffic_agent, spawn_waypoints, config):
-        self.config = config
-        num_vehicles = self.config["TrafficParameters"]["num_vehicles"]
-        v_types = self.config["TrafficParameters"]["bg_vehicle_type"]
-        self.spawn_waypoints = spawn_waypoints
-        self.create_bg_vehicles(
-            world, num_vehicles, v_types, self.spawn_waypoints, traffic_agent)
+    
 
-    def change_lane(self, world, vehicle, ego):
-        pass
+    def get_lane_id(self, vehicle):
+        carla_map = self.map
+        waypoint = carla_map.get_waypoint(vehicle)
+        if not waypoint:
+            return 2
+        return 1 if (waypoint.lane_change == carla.LaneChange.Right) else 2
+
+    
 
     @time_const(fps=36)
-    def run_step(self, world):
-        # info = self.communi_agent.rec_obj("ss")
-        # logging.debug(f"traffic flow received info: {info}")
-        # current_time = time.time()
-        ego_vehicle = get_ego_vehicle(world)
-        res = batch_process_vehicles(world, ego_vehicle, 200,
-                                     [-100, 100], self.change_lane)
-        # now = time.time()
-        # logging.debug(
-        #     f"traffic flow run step time: {now - current_time}, {len(res)}")
-
-        pass
+    def run_step(self, world,ego_vehicle):
+        control = carla.VehicleControl()
+        threshold_long_distance = 30
+        ego_lane_index = self.get_lane_id(ego_vehicle.get_location())
+        current_location = ego_vehicle.get_location()
+        res = batch_process_vehicles(world, ego_vehicle, 10,
+                                     [-3, 3], self.obstacle_change_lane,self.traffic_manager,control,threshold_long_distance,ego_lane_index ,current_location)
+        if res:
+            self.communi_agent.send_obj(res)
 
     def run(self):
         client, world = connect_to_server(self.config)
-        self.communi_agent.init_subscriber("EgoVehicle",
-                                             self.config["PortParameters"]["ego_port"])
+        self.map = world.get_map()
 
-        while True:
-            info = self.communi_agent.rec_obj("EgoVehicle")
-            # logging.debug(f"traffic flow received info: {info}")
-            self.run_step(world)
-            
-            pass
+        self.start_agent()
+
+        # self.traffic_manager = client.get_trafficmanager()
+        # self.communi_agent.init_subscriber("EgoVehicle",
+        #                                      self.config["ego_port"])
+
+        
+
+        # time.sleep(3)
+        # ego_vehicle = get_ego_vehicle(world)
+        # while True:
+        #     # info = self.communi_agent.rec_obj("EgoVehicle")
+        #     # logging.debug(f"traffic flow received info: {info}")
+        #     self.run_step(world,ego_vehicle)
+        #     pass
+    def obstacle_change_lane(self,world, obstacle, ego_v,tm,control,threshold_long_distance,ego_lane_index ,current_location):
+
+        # control = carla.VehicleControl()
+        # control.brake = 2
+        # obstacle.apply_control(control)
+        return
+        obstacle_location = obstacle.get_location()
+        obstacle_yaw = obstacle.get_transform().rotation.yaw 
+        obs_speed = get_speed(obstacle)
+        distance_obs = math.sqrt(
+                    (obstacle_location.x - current_location.x) ** 2
+                    + (obstacle_location.y - current_location.y) ** 2
+                )
+        obs_lane_index = self.get_lane_id(obstacle_location)
+        lane_shit = -1.1 if abs(obs_lane_index) == 1 else 1.1
+        if distance_obs < threshold_long_distance + 10 and distance_obs > 10:
+                if obs_lane_index == ego_lane_index:
+                    if abs(obs_lane_index) == 1:
+                        tm.force_lane_change(
+                            obstacle, False
+                        )  # -1 means left and 1 means right
+                    else:
+                        tm.force_lane_change(
+                            obstacle, True
+                        )  # -1 means left and 1 means right
+                # -1 means left and 1 means right
+                self.block = False
+                if (
+                    distance_obs < threshold_long_distance + 10
+                    # and obs_speed < 2
+                    # and distance_obs > 5
+                ):
+                    control.steer = lane_shit * 0.55 * (1.9 - obs_speed)
+                    # control.throttle = 2
+                    control.steer = 2
+                    # control.brake = 2
+                    obstacle.apply_control(control)
+                elif distance_obs < threshold_long_distance - 8:
+                    tm.vehicle_lane_offset(obstacle, lane_shit)
+
+                if distance_obs < threshold_long_distance + 5 and (
+                    obs_lane_index == ego_lane_index
+                ):
+                    self.block = True
+                    self.step = 90
+                    self.lane_shift = 1.7 if abs(ego_lane_index) == 1 else -1.7
+        pass
 
 
-            self.run_step(world)
 
-            pass
+ 
 
-    def choose_a_point(self, waypoint_list):
-        choosen_waypoint = random.choice(waypoint_list)
-        waypoint_list.remove(choosen_waypoint)
-        return choosen_waypoint
-
-    def create_bg_vehicles(self, world, num_vehicles, vehicle_types, spawn_waypoints, traffic_agent):
-        bg_vehicles = []
-        for _ in range(num_vehicles):
-            try:
-                spawn_point = self.choose_a_point(spawn_waypoints)
-                v_type = random.choice(vehicle_types)
-                vehicle = spawn_vehicle(world,
-                                        v_type, spawn_point)
-                while vehicle is None:
-                    logging.warn(
-                        f"spawn_actor{v_type} failed, trying another start point...")
-                    v_type = random.choice(vehicle_types)
-                    spawn_point = self.choose_a_point(spawn_waypoints)
-                    vehicle = spawn_vehicle(world, v_type, spawn_point)
-                if vehicle is not None:
-                    vehicle.set_autopilot(True, traffic_agent.get_port())
-                    # world.wait_for_tick()
-                bg_vehicles.append(vehicle)
-            except Exception as e:
-                logging.error(f"create traffic flow error:{e}")
-        logging.debug(
-            f"spawned {len(bg_vehicles)} vehicles")
-        return bg_vehicles
-
-    def get_bg_vehicles(self):
-        return self.bg_vehicles
-
-    def get_ego_vehicle(self):
-        return self.ego_vehicle.vehicle
 
     def get_sensor_manager(self):
         return self.ego_vehicle.sensor_manager
+
+def main():
+    TrafficFlowManager().run()
+
+
+
+if __name__ == "__main__":
+    main()

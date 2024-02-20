@@ -1,10 +1,9 @@
 {
     "version": "0.2.0",
     "configurations": [
-
         {
             "name": "Python: Current File (Debug)",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             // first change path to src/
             "cwd": "${workspaceFolder}/src",
@@ -14,9 +13,8 @@
             "args": [
                 "--debug",
                 "test",
-                "-t",
-                "town03",
-                "--log","all"
+                "--log",
+                "console"
             ]
         }
     ]

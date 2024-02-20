@@ -17,9 +17,9 @@ class CommuniAgent:
         self.pub_socket = self.context.socket(zmq.PUB)
         self.pub_socket.bind(f"tcp://*:{pub_port}")
 
-    def init_subscriber(self, name: str, sub_port):
+    def init_subscriber(self, name: str, sub_port, pub_ip="localhost"):
         sub_socket = self.context.socket(zmq.SUB)
-        sub_socket.connect(f"tcp://localhost:{sub_port}")
+        sub_socket.connect(f"tcp://{pub_ip}:{sub_port}")
         sub_socket.setsockopt_string(zmq.SUBSCRIBE, "")
         self.sub_sockets[name] = sub_socket
 

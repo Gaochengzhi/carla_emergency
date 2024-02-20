@@ -1,17 +1,50 @@
-WorldParameters:
-  carla_timeout: 39.0
-  map_name: Town03
-  actor_active_distance: 100
-  hybrid_physics_radius: 30
-  tile_stream_distance: 100
-TrafficParameters:
-  num_vehicles: 100
-  spwan_points_distance: 15
-  area_limit:
-    min_x: -500
-    max_x: 5000
-    min_y: -500
-    max_y: 4000
-DebugParameters:
-  camera_height: 120
+# WorldParameters:
+carla_timeout: 9.0
+map_name: Town10HD
+actor_active_distance: 100
+hybrid_physics_radius: 30
+tile_stream_distance: 100
+# TrafficParameters:
+num_vehicles: 50
+spwan_points_distance: 20
+area_limit:
+  min_x: -500
+  max_x: 5000
+  min_y: -500
+  max_y: 4000
+# DebugParameters:
+camera_height: 60
+debug_sp: True
 
+# agents:
+agents:
+  - name: "agent1"
+    port: 9561
+    type: "vehicle.ford.crown"
+    spawn_point: 7
+    destination: 104
+  - name: "agent2"
+    port: 9562
+    type: "vehicle.ford.crown"
+    spawn_point: 6
+    destination: 103
+  - name: "agent3"
+    port: 9563
+    type: "vehicle.ford.crown"
+    spawn_point: 582
+    destination: 114
+  - name: "agent4"
+    port: 9564
+    type: "vehicle.ford.crown"
+    spawn_point: 51
+    destination: 119
+  - name: "agent5"
+    port: 9565
+    type: "vehicle.ford.crown"
+    spawn_point: 7
+    destination: 104
+  - name: "agent6"
+    port: 9566
+    type: "vehicle.ford.crown"
+    spawn_point: 7
+    destination: 104

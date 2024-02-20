@@ -7,12 +7,6 @@ class DebugManager:
     def __init__(self, world, urban_waypoints, config):
         self.world = world
         self.debug = world.debug
-        # self.draw_global_waypoint = config["draw_global_waypoint"]
-        # self.draw_trajectory = config["draw_trajectory"]
-        # if config["DebugParameters"]["draw_spawn_points"]:
-        #     self.draw_waypoints(world, urban_waypoints)
-        # pass
-        # self.set_bird_view(world, urban_waypoints, config)
 
 
 def update_view(world, x, y, z, rotation=carla.Rotation(-90, 0, 0)):
@@ -30,7 +24,7 @@ def set_bird_view(world, location, config):
         world,
         location.x,
         location.y,
-        location.z + config["DebugParameters"]["camera_height"]
+        location.z + config["camera_height"]
     )
 
 
@@ -66,7 +60,17 @@ def draw_transforms(world, transforms, color=carla.Color(255, 0, 0), size=0.09, 
         world.debug.draw_point(
             transform.location, size=size, color=color, life_time=life_time
         )
-
+def draw_transforms_with_index(world, transforms, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
+    """
+    draw a list of transforms with text
+    """
+    for index, transform in enumerate(transforms):
+        world.debug.draw_point(
+            transform.location, size=size, color=color, life_time=life_time
+        )
+        world.debug.draw_string(
+            transform.location, str(index), draw_shadow=False, color=color, life_time=life_time
+        )
 
 def draw_strings(world, strings, location, color=carla.Color(255, 0, 0), life_time=0.09):
     for string in strings:

@@ -11,9 +11,9 @@ class LocalPlanner():
         self.global_waypoints = global_waypoints
         self.ego_vehicle = ego_vehicle
         self.local_planner_buffer = []
-        self.local_sample_resolution = config["EmergencyVehicleParameters"]["local_planner_resolution"]
-        self.global_sample_resolution = config["EmergencyVehicleParameters"]["global_route_resolution"]
-        self._dt = 1.0 / config["PygameParameters"]["screen_fps"]
+        self.local_sample_resolution = config["local_planner_resolution"]
+        self.global_sample_resolution = config["global_route_resolution"]
+        self._dt = 1.0 / config["screen_fps"]
         self._args_lateral_dict = {'K_P': 1.95,
                                    'K_I': 0.05, 'K_D': 0.2, 'dt': self._dt}
         self._args_longitudinal_dict = {
@@ -21,16 +21,19 @@ class LocalPlanner():
         self.controller = VehiclePIDController(self.ego_vehicle, self._args_lateral_dict, self._args_longitudinal_dict)
 
     def run_step(self,speed):
-        ego_location = self.ego_vehicle.get_transform()
+        ego_transform = self.ego_vehicle.get_transform()
         wp = [x[0] for x in self.global_waypoints]
         if len(self.local_planner_buffer) < 20:
-            self.local_planner_buffer = self.generate_smooth_trajectory(self.ego_vehicle, wp)
+            try:
+                self.local_planner_buffer = self.generate_smooth_trajectory(self.ego_vehicle, wp)
+            except:
+                return carla.VehicleControl(brake=0.1)
 
-        if is_within_distance(ego_location, self.global_waypoints[0][0].transform, self.global_sample_resolution+3):
+        if is_within_distance(ego_transform, self.global_waypoints[0][0].transform, self.global_sample_resolution+3):
             self.global_waypoints.pop(0)
             pass
 
-        if is_within_distance(ego_location, self.local_planner_buffer[0], self.local_sample_resolution):
+        if is_within_distance(ego_transform, self.local_planner_buffer[0], self.local_sample_resolution+3):
             self.local_planner_buffer.pop(0)
             pass
         
