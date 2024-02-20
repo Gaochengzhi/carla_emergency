@@ -10,6 +10,7 @@ import carla
 import math
 import csv
 
+
 class Singleton(type):
     _instances = {}
 
@@ -19,22 +20,40 @@ class Singleton(type):
                 Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
 
-def txt_to_points(line):
-    sp = carla.Transform(carla.Location(float(line[0]), float(line[1]), float(line[2])), carla.Rotation(float(line[3]), float(line[4]), float(line[5])))
+
+def list_to_points(line):
+    sp = carla.Transform(carla.Location(float(line[0]), float(line[1]), float(
+        line[2])), carla.Rotation(float(line[3]), float(line[4]), float(line[5])))
     return sp
+
+
+def txt_to_points(input_string):
+    numbers_list = [float(item) for item in input_string.split(',')]
+    return list_to_points(numbers_list)
+
+
+def get_cache_file(map_name, sp_distance=20):
+    map_name = map_name.split("/")[-1]
+    cache_dir = "cache/sp_points"
+    filename = f"{map_name}.csv"
+    filepath = os.path.join(cache_dir, filename)
+
+    return filepath
+
+
 def load_points_from_csv(filepath):
     wp_list = []
     with open(filepath, "r") as file:
-        reader = csv.reader(file) 
+        reader = csv.reader(file)
         for line in reader:
-            wp_list.append(txt_to_points(line))
+            wp_list.append(list_to_points(line))
     return wp_list
-    
 
-def connect_to_server(config):
-    carla_timeout = config["carla_timeout"]
-    carla_port = config["carla_port"]
-    client = carla.Client("localhost", carla_port)
+
+def connect_to_server(timeout, port, host="localhost"):
+    carla_timeout = timeout
+    carla_port = port
+    client = carla.Client(host, carla_port)
     client.set_timeout(carla_timeout)
     world = client.get_world()
     return client, world
@@ -44,17 +63,14 @@ def destroy_all_actors(world):
     for actor in world.get_actors():
         if actor.type_id.startswith("vehicle") or actor.type_id.startswith("sensor"):
             actor.destroy()
+    logging.debug("All actors destroyed")
     world.tick()
-    
-    
-
-
-    
 
 
 def spawn_vehicle(world, vehicle_type, spawn_point, hero=False):
-    lz = spawn_point.location.z + 1.5
-    spawn_point= carla.Transform(carla.Location(spawn_point.location.x, spawn_point.location.y, lz), spawn_point.rotation)
+    lz = spawn_point.location.z + 1.2
+    spawn_point = carla.Transform(carla.Location(
+        spawn_point.location.x, spawn_point.location.y, lz), spawn_point.rotation)
     vehicle_bp = world.get_blueprint_library().filter(
         vehicle_type
     )[0]
@@ -78,8 +94,6 @@ def waypoints_center(waypoint_list):
     )
 
 
-
-
 def get_ego_vehicle(world):
     actor = None
     while not actor:
@@ -90,6 +104,7 @@ def get_ego_vehicle(world):
         time.sleep(0.2)
     raise RuntimeError("No ego vehicle found")
 
+
 def log_time_cost(func):
     """
     Decorator to log the execution time of a function.
@@ -99,12 +114,14 @@ def log_time_cost(func):
         start_time = time.time()  # Start time of function execution
         result = func(*args, **kwargs)  # Execute the function
         elapsed_time = time.time() - start_time  # Calculate elapsed time
-        
+
         # Log the time cost with debug level
-        logging.debug(f"Function {func.__name__} executed in {elapsed_time:.4f} seconds.")
-        
+        logging.debug(
+            f"Function {func.__name__} executed in {elapsed_time:.4f} seconds.")
+
         return result
     return wrapper
+
 
 def time_const(fps):
     def decorator(func):

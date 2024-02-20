@@ -19,12 +19,12 @@ def update_view(world, x, y, z, rotation=carla.Rotation(-90, 0, 0)):
     )
 
 
-def set_bird_view(world, location, config):
+def set_bird_view(world, location, high):
     update_view(
         world,
         location.x,
         location.y,
-        location.z + config["camera_height"]
+        location.z + high
     )
 
 
@@ -52,6 +52,8 @@ def draw_waypoints(world, waypoints, z=2, color=carla.Color(255, 0, 0), size=0.0
         world.debug.draw_point(
             waypoint.transform.location, size=size, color=color, life_time=life_time
         )
+
+
 def draw_transforms(world, transforms, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
     """
     draw a list of transforms
@@ -60,6 +62,8 @@ def draw_transforms(world, transforms, color=carla.Color(255, 0, 0), size=0.09, 
         world.debug.draw_point(
             transform.location, size=size, color=color, life_time=life_time
         )
+
+
 def draw_transforms_with_index(world, transforms, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
     """
     draw a list of transforms with text
@@ -71,6 +75,7 @@ def draw_transforms_with_index(world, transforms, color=carla.Color(255, 0, 0), 
         world.debug.draw_string(
             transform.location, str(index), draw_shadow=False, color=color, life_time=life_time
         )
+
 
 def draw_strings(world, strings, location, color=carla.Color(255, 0, 0), life_time=0.09):
     for string in strings:

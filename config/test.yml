@@ -5,7 +5,7 @@ actor_active_distance: 100
 hybrid_physics_radius: 30
 tile_stream_distance: 100
 # TrafficParameters:
-num_vehicles: 50
+num_vehicles: 100
 spwan_points_distance: 20
 area_limit:
   min_x: -500
@@ -21,30 +21,34 @@ agents:
   - name: "agent1"
     port: 9561
     type: "vehicle.ford.crown"
-    spawn_point: 7
-    destination: 104
+    start_point: -78.57659912109375,-95.01242065429688,0.29999998211860657,-179.9136962890625,0.0,0.0
+    end_point: 17.84708023071289,-4.494134426116943,0.29999998211860657,179.86048889160156,0.0,0.0
+    main_port: 6000
+    traffic_agent_port: 9555
   - name: "agent2"
     port: 9562
     type: "vehicle.ford.crown"
-    spawn_point: 6
-    destination: 103
-  - name: "agent3"
-    port: 9563
-    type: "vehicle.ford.crown"
-    spawn_point: 582
-    destination: 114
-  - name: "agent4"
-    port: 9564
-    type: "vehicle.ford.crown"
-    spawn_point: 51
-    destination: 119
-  - name: "agent5"
-    port: 9565
-    type: "vehicle.ford.crown"
-    spawn_point: 7
-    destination: 104
-  - name: "agent6"
-    port: 9566
-    type: "vehicle.ford.crown"
-    spawn_point: 7
-    destination: 104
+    start_point: -0.9293797016143799,-0.9443005919456482,0.29999998211860657,179.86048889160156,0.0,0.0
+    end_point: 17.84708023071289,-4.494134426116943,0.29999998211860657,179.86048889160156,0.0,0.0
+    main_port: 6000
+    traffic_agent_port: 9555
+  # - name: "agent3"
+  #   port: 9563
+  #   type: "vehicle.ford.crown"
+  #   spawn_point: 582
+  #   destination: 114
+  # - name: "agent4"
+  #   port: 9564
+  #   type: "vehicle.ford.crown"
+  #   spawn_point: 51
+  #   destination: 119
+  # - name: "agent5"
+  #   port: 9565
+  #   type: "vehicle.ford.crown"
+  #   spawn_point: 7
+  #   destination: 104
+  # - name: "agent6"
+  #   port: 9566
+  #   type: "vehicle.ford.crown"
+  #   spawn_point: 7
+  #   destination: 104
