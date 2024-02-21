@@ -10,6 +10,7 @@ from data.recorder_manager import DataRecorder
 from util import destroy_all_actors, time_const, log_time_cost
 import time
 import carla
+import sys
 import logging
 import os
 from tools.loader import load_agents
@@ -21,27 +22,25 @@ def main():
     world_manager = WorldManager(config)
     world = world_manager.get_world()
     client = world_manager.get_client()
-    destroy_all_actors(world)
-
-    
-
+    TM = world_manager.get_traffic_manager()
+    # destroy_all_actors(world)
 
     main_com = MainCommuicator(config)
     main_com.send_obj("start")
 
-    load_agents(config)
-    
+    # load_agents(config)
 
     # PyGameAgent(urban_waypoints, config).start()
 
-
-    t = TrafficFlowManager()
-    t.start()
+    # t = TrafficFlowManager()
+    # t.start()
 
     # DataRecorder(world, traffic_agent, urban_waypoints, config).start()
 
+    # logging.info("Simulation started\n")
     # @log_time_cost
-    # @time_const(fps=24)
+
+    @time_const(fps=64)
     def run_step(world):
         main_com.send_obj("on")
         # info = main_com.rec_obj("emergency_vehicle")
@@ -54,26 +53,23 @@ def main():
             run_step(world)
     finally:
         main_com.send_obj("end")
-        time.sleep(1)
-        destroy_all_actors(world)
-        main_com.close()
-        logging.info("Simulation ended\n")
         settings = world.get_settings()
         settings.synchronous_mode = False
-        TM = client.get_trafficmanager()
+        world.apply_settings(settings)
         TM.set_synchronous_mode(False)
+        destroy_all_actors(world)
         time.sleep(1)
+        main_com.close()
+        logging.info("Simulation ended\n")
 
 
 def MainCommuicator(config):
     world_control_center = CommuniAgent("World")
     world_control_center.init_publisher(config["main_port"])
-   
-        # world_control_center.init_subscriber(agent["name"],
-                                        #  agent["port"])
+
+    # world_control_center.init_subscriber(agent["name"],
+    #  agent["port"])
     return world_control_center
-
-
 
 
 if __name__ == "__main__":
