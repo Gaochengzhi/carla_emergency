@@ -3,7 +3,6 @@ from tools.config_manager import config as cfg
 from view.debug_manager import DebugManager, set_bird_view
 from tools.input_manager import recieve_args
 from agent.traffic_agent import TrafficFlowManager
-from agent.ego_vehicle_agent import EgoVehicleAgent
 from data.commuicate_manager import CommuniAgent
 from data.recorder_manager import DataRecorder
 
