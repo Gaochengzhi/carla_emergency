@@ -108,13 +108,12 @@ class WorldManager:
         _tm = self.traffic_agent
         self.create_bg_vehicles(
             world, num_vehicles, v_types, filtered_points, _tm)
-
     def _gen_filtered_points(self, area_limit, sp_distance):
         map_name = self.map.name.split("/")[-1]
         cache_dir = "cache/sp_points"
         filename = f"{map_name}.csv"
         filepath = os.path.join(cache_dir, filename)
-        if os.path.exists(filepath):
+        if os.path.exists(filepath) and False:
             return load_points_from_csv(filepath)
         else:
             distance_sps = self.map.get_spawn_points()
@@ -133,7 +132,6 @@ class WorldManager:
                 for sp in filtered_points:
                     file.write(
                         f"{sp.location.x},{sp.location.y},{sp.location.z},{sp.rotation.yaw},{sp.rotation.pitch},{sp.rotation.roll}\n")
-            random.shuffle(filtered_points)
             return filtered_points
 
     def create_bg_vehicles(self, world, num_vehicles, vehicle_types, spawn_points, traffic_agent):

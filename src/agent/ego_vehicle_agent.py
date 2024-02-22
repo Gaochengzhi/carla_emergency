@@ -12,26 +12,26 @@ import random
 
 
 class EgoVehicleAgent(BaseAgent):
-    def __init__(self):
-        # self.config = config
+    def __init__(self,config):
+        self.config = config
         BaseAgent.__init__(
-            self, self.config["name"]+str(random.randint()), )
+            self, self.config["name"], self.config["port"] )
         self.count = 0
 
     def run(self):
         client, world = connect_to_server(8, 2000)
         self.start_agent()
         self.set_communi_agent()
+        self.waypoints = world.get_map().get_spawn_points()
 
-        start_point = txt_to_points(
-            self.config["start_point"])
-        end_point = txt_to_points(self.config["end_point"])
+        start_point = self.waypoints[self.config["start_point"]]
+        end_point = self.waypoints[self.config["end_point"]]
 
         set_bird_view(world, start_point.location, 50)
         self.vehicle = self.create_vehicle(world, start_point,
                                            self.config["type"])
         self.global_route_planner = GlobalRoutePlanner(
-            world.get_map(), 15)
+            world.get_map(), 5)
         logging.info("global route planner init success")
 
         self.global_router_waypoints = self.global_route_planner.trace_route(
@@ -40,6 +40,9 @@ class EgoVehicleAgent(BaseAgent):
         # self.local_planner = LocalPlanner(
         #     world, self.global_router_waypoints, self.vehicle, self.config)
 
+        control = carla.VehicleControl()
+        control.throttle = 0.5
+        self.vehicle.set_autopilot(True)
         while True:
 
             if len(self.global_router_waypoints) == 0:
@@ -50,10 +53,11 @@ class EgoVehicleAgent(BaseAgent):
             # DEBUG
             gw = [x[0] for x in self.global_router_waypoints]
             draw_waypoints_arraw(world, gw, z=2, life_time=1)
-            time.sleep(0.5)
+            # self.vehicle.apply_control(control)
 
             # draw_transforms(world, self.local_planner.get_trajection(
             # ), color=carla.Color(0, 128, 0), size=0.03, life_time=1)
+            time.sleep(1)
 
             # control = self.local_planner.run_step(speed=23)
             # self.run_step(control)

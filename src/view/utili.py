@@ -54,7 +54,7 @@ def destroy_all_actors(world):
 
 
 def spawn_vehicle(world, vehicle_type, spawn_point, hero=False):
-    lz = spawn_point.location.z + 0.5
+    lz = spawn_point.location.z + 1.0
     spawn_point= carla.Transform(carla.Location(spawn_point.location.x, spawn_point.location.y, lz), spawn_point.rotation)
     vehicle_bp = world.get_blueprint_library().filter(
         vehicle_type

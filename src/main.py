@@ -28,7 +28,7 @@ def main():
     main_com = MainCommuicator(config)
     main_com.send_obj("start")
 
-    # load_agents(config)
+    load_agents(config)
 
     # PyGameAgent(urban_waypoints, config).start()
 
@@ -40,7 +40,7 @@ def main():
     # logging.info("Simulation started\n")
     # @log_time_cost
 
-    @time_const(fps=64)
+    @time_const(fps=30)
     def run_step(world):
         main_com.send_obj("on")
         # info = main_com.rec_obj("emergency_vehicle")
@@ -58,6 +58,7 @@ def main():
         world.apply_settings(settings)
         TM.set_synchronous_mode(False)
         destroy_all_actors(world)
+        # client.reload_world()
         time.sleep(1)
         main_com.close()
         logging.info("Simulation ended\n")
