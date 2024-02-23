@@ -31,12 +31,9 @@ class EgoVehicleAgent(BaseAgent):
         set_bird_view(world, start_point.location, 50)
         self.vehicle = self.create_vehicle(world, start_point,
                                            self.config["type"])
-        self.sensor_manager = SensorManager(world, self.vehicle, self.config)
-
         self.global_route_planner = GlobalRoutePlanner(
             world.get_map(), 5)
-        logging.info("global route planner init success")
-
+        logging.debug("global route planner init success")
         self.global_router_waypoints = self.global_route_planner.trace_route(
             start_point.location, end_point.location)
 
@@ -46,16 +43,23 @@ class EgoVehicleAgent(BaseAgent):
         control = carla.VehicleControl()
         control.throttle = 0.5
         self.vehicle.set_autopilot(True)
-        while True:
+        try:
+            while True:
+                if len(self.global_router_waypoints) == 0:
+                    logging.info("vehicle reach destination")
+                    self.close_agent()
+                    return
 
-            if len(self.global_router_waypoints) == 0:
-                logging.info("vehicle reach destination")
-                self.close_agent()
-                return
-
-            # DEBUG
-            gw = [x[0] for x in self.global_router_waypoints]
-            draw_waypoints_arraw(world, gw, z=2, life_time=1)
+                # DEBUG
+                gw = [x[0] for x in self.global_router_waypoints]
+                draw_waypoints_arraw(world, gw, z=2, life_time=1)
+                time.sleep(1)
+        except KeyboardInterrupt:
+            self.close_agent()
+            settings = world.get_settings()
+            settings.synchronous_mode = False
+            world.apply_settings(settings)
+            exit()
             # self.vehicle.apply_control(control)
 
             # draw_transforms(world, self.local_planner.get_trajection(

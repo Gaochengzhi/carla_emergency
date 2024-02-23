@@ -28,14 +28,14 @@ def main():
     main_com = MainCommuicator(config)
     main_com.send_obj("start")
 
-    load_agents(config)
+    # load_agents(config)
 
     # PyGameAgent(urban_waypoints, config).start()
 
     # TrafficFlowManager().start()
     # t.start()
 
-    # DataRecorder(world, traffic_agent, urban_waypoints, config).start()
+    DataRecorder(config).start()
 
     # logging.info("Simulation started\n")
     # @log_time_cost

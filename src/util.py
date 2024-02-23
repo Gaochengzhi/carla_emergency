@@ -145,7 +145,23 @@ def time_const(fps):
 def waypoint_to_graph_point(waypoint):
     return (waypoint.transform.location.x, waypoint.transform.location.y, waypoint.transform.location.z)
 
-
+def get_vehicle_info(vehicle):
+    location = vehicle.get_location()  
+    velocity = vehicle.get_velocity()  
+    acceleration = vehicle.get_acceleration()  
+    control = vehicle.get_control()
+    transform = vehicle.get_transform()  
+    vehicle_physics = vehicle.get_physics_control()
+    vehicle_info = {
+        'id': vehicle.id,
+        'location': location,
+        'velocity': velocity,
+        'acceleration': acceleration,
+        'control': control,
+        'transform': transform, 
+        'vehicle_pysics': vehicle_physics,
+    }
+    return vehicle_info
 def batch_process_vehicles(world, func, *args, **kwargs):
     vehicles = []
     for actor in world.get_actors():
