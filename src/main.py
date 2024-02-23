@@ -32,14 +32,13 @@ def main():
 
     # PyGameAgent(urban_waypoints, config).start()
 
-    # t = TrafficFlowManager()
+    # TrafficFlowManager().start()
     # t.start()
 
     # DataRecorder(world, traffic_agent, urban_waypoints, config).start()
 
     # logging.info("Simulation started\n")
     # @log_time_cost
-
     @time_const(fps=30)
     def run_step(world):
         main_com.send_obj("on")

@@ -68,7 +68,7 @@ def destroy_all_actors(world):
 
 
 def spawn_vehicle(world, vehicle_type, spawn_point, hero=False):
-    lz = spawn_point.location.z+ 0.5
+    lz = spawn_point.location.z + 0.5
     spawn_point = carla.Transform(carla.Location(
         spawn_point.location.x, spawn_point.location.y, lz), spawn_point.rotation)
     vehicle_bp = world.get_blueprint_library().filter(
@@ -146,7 +146,16 @@ def waypoint_to_graph_point(waypoint):
     return (waypoint.transform.location.x, waypoint.transform.location.y, waypoint.transform.location.z)
 
 
-def batch_process_vehicles(world, ego,  max_distance, angle, func, *args, **kwargs):
+def batch_process_vehicles(world, func, *args, **kwargs):
+    vehicles = []
+    for actor in world.get_actors():
+        if actor.type_id.startswith("vehicle"):
+            processed_vehicle = func(world, actor, *args, **kwargs)
+            vehicles.append(processed_vehicle)
+    return vehicles
+
+
+def batch_process_surround_vehicles(world, ego,  max_distance, angle, func, *args, **kwargs):
 
     vehicles = []
     for actor in world.get_actors():

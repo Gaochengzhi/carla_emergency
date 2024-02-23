@@ -5,6 +5,7 @@ import logging
 import carla
 from agent.ego_vehicle_agent import EgoVehicleAgent
 from view.debug_manager import DebugManager as debug
+from prediction.prediction import predict
 from util import connect_to_server, time_const, batch_process_vehicles, get_speed
 from agent.baseAgent import BaseAgent
 import time
@@ -16,33 +17,35 @@ class TrafficFlowManager(BaseAgent):
         self,
     ) -> None:
         self.config = cfg.config
+        self.fps = 2
         BaseAgent.__init__(self, "TrafficFlow",
                            self.config["traffic_agent_port"])
 
-    def get_lane_id(self, vehicle):
-        carla_map = self.map
-        waypoint = carla_map.get_waypoint(vehicle)
-        if not waypoint:
-            return 2
-        return 1 if (waypoint.lane_change == carla.LaneChange.Right) else 2
+    @time_const(fps=2)
+    def run_step(self, world):
+        preception_res = batch_process_vehicles(world, predict, self.fps)
+        logging.debug(f"traffic flow received info: {preception_res}")
+        self.communi_agent.send_obj(preception_res)
 
-    @time_const(fps=36)
-    def run_step(self, world, ego_vehicle):
-        control = carla.VehicleControl()
-        threshold_long_distance = 30
-        ego_lane_index = self.get_lane_id(ego_vehicle.get_location())
-        current_location = ego_vehicle.get_location()
-        res = batch_process_vehicles(world, ego_vehicle, 10,
-                                     [-3, 3], self.obstacle_change_lane, self.traffic_manager, control, threshold_long_distance, ego_lane_index, current_location)
-        if res:
-            self.communi_agent.send_obj(res)
+        # control = carla.VehicleControl()
+        # threshold_long_distance = 30
+        # ego_lane_index = self.get_lane_id(ego_vehicle.get_location())
+        # current_location = ego_vehicle.get_location()
+        # res = batch_process_vehicles(world, ego_vehicle, 10,
+        #                              [-3, 3], self.obstacle_change_lane, self.traffic_manager, control, threshold_long_distance, ego_lane_index, current_location)
+        # if res:
+        #     self.communi_agent.send_obj(res)
+        pass
 
     def run(self):
         client, world = connect_to_server(
             self.config["carla_timeout"], self.config["carla_port"])
         self.map = world.get_map()
-
         self.start_agent()
+        time.sleep(5)
+        while True:
+            self.run_step(world)
+            pass
 
         # self.traffic_manager = client.get_trafficmanager()
         # self.communi_agent.init_subscriber("EgoVehicle",

@@ -2,6 +2,7 @@ from agent.baseAgent import BaseAgent
 from data.commuicate_manager import CommuniAgent
 from util import connect_to_server, spawn_vehicle, time_const, is_within_distance, compute_distance, log_time_cost, txt_to_points
 from view.debug_manager import draw_waypoints_arraw, draw_transforms, set_bird_view
+from preception.sensorManager import SensorManager
 from navigation.global_route_planner import GlobalRoutePlanner
 from control.local_planner import LocalPlanner
 import carla
@@ -12,10 +13,10 @@ import random
 
 
 class EgoVehicleAgent(BaseAgent):
-    def __init__(self,config):
+    def __init__(self, config):
         self.config = config
         BaseAgent.__init__(
-            self, self.config["name"], self.config["port"] )
+            self, self.config["name"], self.config["port"])
         self.count = 0
 
     def run(self):
@@ -30,6 +31,8 @@ class EgoVehicleAgent(BaseAgent):
         set_bird_view(world, start_point.location, 50)
         self.vehicle = self.create_vehicle(world, start_point,
                                            self.config["type"])
+        self.sensor_manager = SensorManager(world, self.vehicle, self.config)
+
         self.global_route_planner = GlobalRoutePlanner(
             world.get_map(), 5)
         logging.info("global route planner init success")
@@ -57,7 +60,8 @@ class EgoVehicleAgent(BaseAgent):
 
             # draw_transforms(world, self.local_planner.get_trajection(
             # ), color=carla.Color(0, 128, 0), size=0.03, life_time=1)
-            time.sleep(1)
+            # time.sleep(1)
+            # self.sensor_manager.get_frame()
 
             # control = self.local_planner.run_step(speed=23)
             # self.run_step(control)
@@ -94,14 +98,13 @@ class EgoVehicleAgent(BaseAgent):
         try:
             spawn_actor = spawn_vehicle(
                 world, ego_vehicle_type, start_point, hero=True)
-            world.wait_for_tick()
             while spawn_actor is None:
                 logging.info(
                     f"spawn_actor{ego_vehicle_type} failed, trying another start point...")
                 start_point = random.choice(self.waypoints)
                 spawn_actor = spawn_vehicle(
                     world, ego_vehicle_type, start_point, hero=True)
-            world.wait_for_tick()
+            # world.wait_for_tick()
             return spawn_actor
         except Exception as e:
             logging.error(f"create ego vehicle error:{e}")
