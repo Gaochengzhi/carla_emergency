@@ -79,7 +79,9 @@ class VehiclePIDController():
     """
 
 
-    def __init__(self, vehicle, args_lateral, args_longitudinal, offset=0, max_throttle=0.35, max_brake=0.3,
+    def __init__(self, vehicle, args_lateral={'K_P': 1.95,
+                                   'K_I': 0.05, 'K_D': 0.2, 'dt': 0.03}, args_longitudinal={
+            'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.35, max_brake=0.3,
                  max_steering=0.5):
         """
         Constructor method.
@@ -110,9 +112,9 @@ class VehiclePIDController():
         self._lon_controller = PIDLongitudinalController(self._vehicle, **args_longitudinal)
         self._lat_controller = PIDLateralController(self._vehicle, offset, **args_lateral)
 
-    def run_step(self, target_speed, waypoint):
+    def run_step(self, target_speed, transform):
         acceleration = self._lon_controller.run_step(target_speed)
-        current_steering = self._lat_controller.run_step(waypoint)
+        current_steering = self._lat_controller.run_step(transform)
         control = carla.VehicleControl()
         if acceleration >= 0.0:
             control.throttle = min(acceleration, self.max_throt)

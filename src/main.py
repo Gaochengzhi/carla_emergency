@@ -23,30 +23,15 @@ def main():
     world = world_manager.get_world()
     client = world_manager.get_client()
     TM = world_manager.get_traffic_manager()
-    # destroy_all_actors(world)
-
+    destroy_all_actors(world)
     main_com = MainCommuicator(config)
     main_com.send_obj("start")
-
-    # load_agents(config)
-
-    # PyGameAgent(urban_waypoints, config).start()
-
-    # TrafficFlowManager().start()
-    # t.start()
-
-    DataRecorder(config).start()
-
-    # logging.info("Simulation started\n")
-    # @log_time_cost
-    @time_const(fps=30)
+    load_agents(config)
+    TrafficFlowManager().start()
+    @time_const(fps=24)
     def run_step(world):
         main_com.send_obj("on")
-        # info = main_com.rec_obj("emergency_vehicle")
-        # if info:
-        #     logging.debug(f"main received info: {info}")
         world.tick()
-
     try:
         while True:
             run_step(world)

@@ -1,4 +1,4 @@
-from util import get_vehicle_info
+from util import get_vehicle_info, log_time_cost
 
 class Location:
     def __init__(self, x, y, z):
@@ -31,9 +31,11 @@ def compute_future_state(info, dt):
     future_state = {
         'id': info['id'],
         'location': future_location,
-        'velocity': future_velocity
+        'velocity': future_velocity,
+        'yaw': info['transform'].rotation.yaw
     }
     return future_state
+
 
 
 def predict(world, vehicle, fps):

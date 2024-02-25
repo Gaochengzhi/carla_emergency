@@ -23,23 +23,12 @@ class TrafficFlowManager(BaseAgent):
 
     
 
-    @log_time_cost
-    @time_const(fps=10)
+    @time_const(fps=5)
     def run_step(self, world):
         preception_res = batch_process_vehicles(world, predict, self.fps)
         draw_future_locations(world, preception_res, life_time=1)
-        # logging.debug(f"traffic flow received info: {preception_res}")
         self.communi_agent.send_obj(preception_res)
 
-        # control = carla.VehicleControl()
-        # threshold_long_distance = 30
-        # ego_lane_index = self.get_lane_id(ego_vehicle.get_location())
-        # current_location = ego_vehicle.get_location()
-        # res = batch_process_vehicles(world, ego_vehicle, 10,
-        #                              [-3, 3], self.obstacle_change_lane, self.traffic_manager, control, threshold_long_distance, ego_lane_index, current_location)
-        # if res:
-        #     self.communi_agent.send_obj(res)
-        pass
 
     def run(self):
         client, world = connect_to_server(

@@ -7,6 +7,8 @@ import random
 from util import load_points_from_csv, spawn_vehicle, get_ego_vehicle
 
 
+import threading
+
 class WorldManager:
     def __init__(self, config):
         self.config = config
@@ -16,6 +18,14 @@ class WorldManager:
         self.traffic_agent = self.set_traffic_agent()
         self.set_weather()
         self.set_world_parameter()
+        self.start_init_traffic_flow_thread()
+
+    def start_init_traffic_flow_thread(self):
+        thread = threading.Thread(target=self.init_traffic_flow_thread)
+        thread.start()
+
+    def init_traffic_flow_thread(self):
+        time.sleep(2)
         self.init_traffic_flow(self.world, self.client)
 
     def choose_a_point(self, waypoint_list):

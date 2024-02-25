@@ -9,7 +9,7 @@ import random
 import carla
 import math
 import csv
-
+from concurrent.futures import ThreadPoolExecutor
 
 class Singleton(type):
     _instances = {}
@@ -25,6 +25,8 @@ def list_to_points(line):
     sp = carla.Transform(carla.Location(float(line[0]), float(line[1]), float(
         line[2])), carla.Rotation(float(line[3]), float(line[4]), float(line[5])))
     return sp
+def compute_3D21d(vector):
+    return math.sqrt(vector.x**2 + vector.y**2 + vector.z**2)
 
 
 def txt_to_points(input_string):
@@ -164,10 +166,11 @@ def get_vehicle_info(vehicle):
     return vehicle_info
 def batch_process_vehicles(world, func, *args, **kwargs):
     vehicles = []
-    for actor in world.get_actors():
-        if actor.type_id.startswith("vehicle"):
-            processed_vehicle = func(world, actor, *args, **kwargs)
-            vehicles.append(processed_vehicle)
+    vehicle_actors = [actor for actor in world.get_actors() if actor.type_id.startswith("vehicle")]
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(func, world,vehicle, *args, **kwargs) for vehicle in vehicle_actors]
+        for future in futures:
+            vehicles.append(future.result())
     return vehicles
 
 
@@ -218,6 +221,74 @@ def get_trafficlight_trigger_location(traffic_light):
     point_location = area_loc + carla.Location(x=point.x, y=point.y)
 
     return carla.Location(point_location.x, point_location.y, point_location.z)
+
+import numpy as np
+import math
+
+class Location:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+class Velocity:
+    def __init__(self, x, y, z):
+        self.x = x
+        self.y = y
+        self.z = z
+
+def compute_distance2D(location1, location2):
+    dx = location1[0] - location2.x
+    dy = location1[1] - location2.y
+    return math.sqrt(dx ** 2 + dy ** 2)
+
+
+def get_forward_vector(yaw):
+    """
+    Calculate the forward vector given a yaw angle.
+    """
+    rad = math.radians(yaw)
+    return np.array([math.cos(rad), math.sin(rad)])
+
+def is_within_distance_obs(ego_transform, target_info, max_distance, ego_speed=0, angle_interval=None):
+    """
+    Filters out the target object (B) within the angle_interval but with speed greater than ego (A).
+
+    :param A: ego_transform, contains location and yaw of the ego vehicle
+    :param B: future_state, contains location, velocity, and yaw of the target object
+    :param max_distance: maximum allowed distance
+    :param angle_interval: only locations between [min, max] angles will be considered.
+    :return: boolean
+    """
+    # Calculate the vector from A to B
+    target_vector = np.array([
+        target_info['location'].x - ego_transform.location.x,
+        target_info['location'].y - ego_transform.location.y
+    ])
+    norm_target = np.linalg.norm(target_vector)
+
+    # If the vector is too short, we can simply stop here
+    if norm_target < 0.001:
+        return False  # Assuming we don't want to consider zero distance valid
+
+    # Further than the max distance
+    if norm_target > max_distance:
+        return False
+
+    # Calculate the angle between A's forward vector and the vector to B
+    forward_vector = get_forward_vector(ego_transform.rotation.yaw)
+    angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+
+    # Check if angle is within the specified interval
+    if angle_interval and not (angle_interval[0] <= angle <= angle_interval[1]):
+        return False
+
+
+    # Filter out if B's speed is greater than A's
+    if target_info['velocity'].x > ego_speed:
+        return False
+
+    return True
 
 
 def is_within_distance(target_transform, reference_transform, max_distance, angle_interval=None):
@@ -294,6 +365,7 @@ def distance_vehicle(waypoint, vehicle_transform):
     y = waypoint.transform.location.y - loc.y
 
     return math.sqrt(x * x + y * y)
+
 
 
 def vector(location_1, location_2):
