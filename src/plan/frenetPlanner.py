@@ -7,7 +7,7 @@ import random
 import sys
 import carla
 from util import compute_distance, is_within_distance_obs, log_time_cost, compute_3D21d, compute_distance2D, compute_magnitude_angle
-from view.debug_manager import draw_waypoints, draw_locations
+from view.debug_manager import draw_waypoints, draw_list
 from scipy.interpolate import splprep, splev
 import logging
 
@@ -39,118 +39,108 @@ class FrenetPlanner():
         self.config = config
         self.vehicle = vehicle
         self.self_id = vehicle.id
-        self.ob = []
+        self.obs_list = []
         self.tmp_gpath = []
         self.local_traj = []
-        self.tx = []
-        self.ty = []
-        self.ts = []
+        self.speed_traj = []
         self.left_side = 1.5
         self.right_side = 1.5
-        self.c_speed = 0
+        self.ego_speed = 0
         self.controller = controller(vehicle)
         self.target_speed = random.randint(20, 25)
         self.location = None
 
-    def update_obstacle(self, obs, ego_transform, self_id, ego_speed):
-        obs_list = []
-        if not obs:
-            return obs_list
-        for obs_info in obs:
-            if obs_info["id"] != self_id and is_within_distance_obs(ego_transform, obs_info, 60, ego_speed, [-12, 12]):
-                obs_list.append(
-                    [obs_info["location"].x, obs_info["location"].y])
-        self.ob = obs_list
-
-    def _find_nearest_obs(self):
-        min_distance = 1000
-        nearest_ob = None
-        for ob in self.ob:
-            distance = compute_distance2D(
-                (ob[0], ob[1]), self.location)
-            if distance < min_distance:
-                min_distance = distance
-                nearest_ob = ob
-        return nearest_ob
-
     # @log_time_cost(name="ego_planner")
+
     def run_step(self, obs, control):
         # get_info
-        ego_transform, self.location, self.c_speed, c_accel, c_d, c_d_d, c_d_dd, self.left_side, self.right_side = self.update_vehicle_info()
-        self.ob = []
-        self.update_obstacle(
-            obs, ego_transform, self.self_id, self.c_speed)
-        # check
-        if len(self.global_paths) < 2:
-            control.brake = 0.6
-            self.vehicle.apply_control(control)
-            logging.info("finish the route!")
-            return
-
-            exit()
-        if len(self.tmp_gpath) < 1:
-            self.update_tgpath()
-        if len(self.tx) < 1 or len(self.ty) < 1 or len(self.ts) < 1:
-            self.update_tgpath()
-            self.update_trajectories()
-        if compute_distance(self.tmp_gpath[0].transform.location, self.vehicle.get_location()) < 3:
-            self.tmp_gpath.pop(0)
-            self.global_paths.pop(0)
-        if compute_distance2D((self.tx[0], self.ty[0]), self.location) < 2:
-            self.tx = self.tx[1:]
-            self.ty = self.ty[1:]
-            self.ts = self.ts[1:]
-        # Frenet Optimal Trajectory plan
-        # # obstacle avoid
-        if self.ob:
-            ob = self._find_nearest_obs()
-            dis = compute_distance2D(ob, self.location)
-            if dis < 30:
-                control.throttle = 0
-                control.brake = 0.5
-                # logging.info("obstacle!")
-                self.vehicle.apply_control(control)
-                return
-            if dis < 20:
-                control.brake = 1
-                # logging.error("obstacle detected!")
-                self.vehicle.apply_control(control)
-                return
-
-        # DEBUG
-        draw_waypoints(self.world, self.tmp_gpath, z=2, life_time=0.3)
-        draw_locations(self.world, self.tx, self.ty, size=0.05,
-                       color=carla.Color(0, 250, 123), life_time=0.3)
-        # run
         try:
+            ego_transform, self.location, self.ego_speed, _, self.left_side, self.right_side = self.update_vehicle_info()
+            self.update_obstacle(
+                obs, ego_transform, self.self_id, self.ego_speed)
+            # check
+            if len(self.global_paths) < 2:
+                control.brake = 0.5
+                self.vehicle.apply_control(control)
+                logging.info("finish the route!")
+                sys.exit(0)
+
+            if len(self.tmp_gpath) < 2:
+                self.update_tgpath()
+            if len(self.speed_traj) < 2 or len(self.local_traj) < 2:
+                self.update_tgpath()
+                self.update_trajectories()
+            if compute_distance(self.tmp_gpath[0].transform.location, self.vehicle.get_location()) < 3:
+                self.tmp_gpath.pop(0)
+                self.global_paths.pop(0)
+            if compute_distance2D(self.local_traj[0], self.location) < 2:
+                self.local_traj.pop(0)
+                self.speed_traj.pop(0)
+
+            if len(self.tmp_gpath) < 2:
+                self.update_tgpath()
+            if len(self.speed_traj) < 2 or len(self.local_traj) < 2:
+                self.update_tgpath()
+                self.update_trajectories()
+            # Frenet Optimal Trajectory plan
+            # # obstacle avoid
+            if self.obs_list:
+                ob = self._find_nearest_obs()
+                dis = compute_distance2D(ob, self.location)
+                if dis < 30:
+                    control.throttle = 0
+                    control.brake = 0.5
+                    # logging.info("obstacle!")
+                    self.vehicle.apply_control(control)
+                    return
+                if dis < 20:
+                    control.brake = 1
+                    # logging.error("obstacle detected!")
+                    self.vehicle.apply_control(control)
+                    return
+
+            # DEBUG
+            draw_waypoints(self.world, self.tmp_gpath, z=2, life_time=0.3)
+            draw_list(self.world, self.local_traj, size=0.05,
+                      color=carla.Color(0, 250, 123), life_time=0.3)
+            # run
+            if len(self.local_traj) < 1:
+                return
             target_waypoint = carla.Transform(
-                carla.Location(x=self.tx[0], y=self.ty[0], z=2))
-            control = self.controller.run_step(self.ts[0]*3.6, target_waypoint)
+                carla.Location(x=self.local_traj[0][0], y=self.local_traj[0][1], z=2))
+            control = self.controller.run_step(
+                self.speed_traj[0]*3.6, target_waypoint)
             self.vehicle.apply_control(control)
         except Exception as e:
             logging.error(f"plan run_step error: {e}")
+            print(e.__traceback__.tb_frame.f_globals["__file__"])
+        # 发生异常所在的行数
+            print(e.__traceback__.tb_lineno)
             pass
 
     def update_trajectories(self):
-        wx = [point.transform.location.x for point in self.tmp_gpath]
-        wy = [point.transform.location.y for point in self.tmp_gpath]
-        ws = np.linspace(self.c_speed, self.target_speed, len(wx))
-        try:
-            wx = [wx[i]
-                  for i in range(len(wx)) if i == 0 or wx[i] != wx[i - 1]]
-            wy = [wy[i]
-                  for i in range(len(wy)) if i == 0 or wy[i] != wy[i - 1]]
-            tck, _ = splprep([wx, wy, ws], s=4)
-            u_fine = np.linspace(0, 1, 30)
-            x_fine, y_fine, s_fine = splev(u_fine, tck)
-        except:
-            x_fine, y_fine, s_fine = wx, wy, ws
-        self.tx = x_fine
-        self.ty = y_fine
-        self.ts = s_fine
+        xy_list = np.array([[waypoint.transform.location.x, waypoint.transform.location.y]
+                            for waypoint in self.tmp_gpath])
+        ws = np.linspace(self.ego_speed, self.target_speed, len(xy_list))
+        xy_list = np.column_stack([xy_list, ws])
+        lenxy = len(xy_list)
+        if lenxy > 3:
+            tck, u = splprep(xy_list.T, s=4)
+        elif lenxy < 4 and lenxy > 1:
+            tck, u = splprep(xy_list.T, s=4, k=1)
+        else:
+            self.local_traj = xy_list.tolist()
+            self.speed_traj = ws.tolist()
+            return
+
+        u_new = np.linspace(u.min(), u.max(), 30)
+        x_fine, y_fine, s_fine = splev(u_new, tck)
+        interpolated_waypoints = np.column_stack([x_fine, y_fine]).tolist()
+        self.speed_traj = s_fine.tolist()
+        self.local_traj = interpolated_waypoints
 
     def update_tgpath(self):
-        num_push = min(8, len(self.global_paths) - len(self.tmp_gpath))
+        num_push = min(10, len(self.global_paths))
         self.tmp_gpath = self.global_paths[:num_push]
 
     def update_vehicle_info(self):
@@ -181,14 +171,32 @@ class FrenetPlanner():
             else:
                 right_offset = 0
 
-            # Ensure distances are calculated relative to the vehicle's current lane
             distance_to_left_side = max(0, lane_width / 2 + left_offset)
             distance_to_right_side = max(0, lane_width / 2 + right_offset)
         else:
             distance_to_left_side = distance_to_right_side = 0.5
         c_speed = compute_3D21d(velocity)
         c_accel = compute_3D21d(acceleration)
-        c_d = 0.0  # current lateral position [m]
-        c_d_d = velocity.y  # current lateral speed [m/s]
-        c_d_dd = acceleration.y  # current lateral acceleration [m/s]
-        return transform, location, c_speed, c_accel, c_d, c_d_d, c_d_dd, distance_to_left_side, distance_to_right_side
+        return transform, location, c_speed, c_accel,  distance_to_left_side, distance_to_right_side
+
+    def update_obstacle(self, obs, ego_transform, self_id, ego_speed):
+        self.obs_list = []
+        if not obs:
+            return
+        obs_list = []
+        for obs_info in obs:
+            if obs_info["id"] != self_id and is_within_distance_obs(ego_transform, obs_info, 60, ego_speed, [-10, 10]):
+                obs_list.append(
+                    [obs_info["location"].x, obs_info["location"].y, obs_info["velocity"], obs_info["yaw"]])
+        self.obs_list = obs_list
+
+    def _find_nearest_obs(self):
+        min_distance = 1000
+        nearest_ob = None
+        for ob in self.obs_list:
+            distance = compute_distance2D(
+                (ob[0], ob[1]), self.location)
+            if distance < min_distance:
+                min_distance = distance
+                nearest_ob = ob
+        return nearest_ob

@@ -42,12 +42,13 @@ class EgoVehicleAgent(BaseAgent):
             while True:
                 self.run_step(control)
         except Exception as e:
-            self.close_agent()
             logging.error(f"ego vehicle agent error:{e}")
+            print(e.__traceback__.tb_frame.f_globals["__file__"])
+            print(e.__traceback__.tb_lineno)
             settings = world.get_settings()
             settings.synchronous_mode = False
             world.apply_settings(settings)
-            raise
+            self.close_agent()
             exit()
 
     def get_navi_pos(self, world):
