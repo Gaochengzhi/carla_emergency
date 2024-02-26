@@ -50,8 +50,7 @@ class FrenetPlanner():
         self.target_speed = random.randint(20, 25)
         self.location = None
 
-    # @log_time_cost(name="ego_planner")
-
+    @log_time_cost(name="ego_planner")
     def run_step(self, obs, control):
         # get_info
         try:
@@ -60,7 +59,7 @@ class FrenetPlanner():
                 obs, ego_transform, self.self_id, self.ego_speed)
             # check
             if len(self.global_paths) < 2:
-                control.brake = 0.5
+                control.brake = 0.2
                 self.vehicle.apply_control(control)
                 logging.info("finish the route!")
                 sys.exit(0)
