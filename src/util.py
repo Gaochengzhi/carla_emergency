@@ -1,3 +1,6 @@
+import sys
+from datetime import datetime
+import curses
 import time
 import functools
 import logging
@@ -10,6 +13,7 @@ import carla
 import math
 import csv
 from concurrent.futures import ThreadPoolExecutor
+
 
 class Singleton(type):
     _instances = {}
@@ -25,6 +29,8 @@ def list_to_points(line):
     sp = carla.Transform(carla.Location(float(line[0]), float(line[1]), float(
         line[2])), carla.Rotation(float(line[3]), float(line[4]), float(line[5])))
     return sp
+
+
 def compute_3D21d(vector):
     return math.sqrt(vector.x**2 + vector.y**2 + vector.z**2)
 
@@ -107,10 +113,15 @@ def get_ego_vehicle(world):
     raise RuntimeError("No ego vehicle found")
 
 
-def log_time_cost(func):
+def log_time_cost(func=None, *, name=""):
     """
     Decorator to log the execution time of a function.
+
+
     """
+    if func is None:
+        return lambda func: log_time_cost(func, name=name)
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         start_time = time.time()  # Start time of function execution
@@ -119,7 +130,7 @@ def log_time_cost(func):
 
         # Log the time cost with debug level
         logging.debug(
-            f"Function {func.__name__} executed in {elapsed_time:.4f} seconds.")
+            f"Function {name} {func.__name__} executed in {elapsed_time:.4f} seconds.")
 
         return result
     return wrapper
@@ -147,35 +158,39 @@ def time_const(fps):
 def waypoint_to_graph_point(waypoint):
     return (waypoint.transform.location.x, waypoint.transform.location.y, waypoint.transform.location.z)
 
+
 def get_vehicle_info(vehicle):
-    location = vehicle.get_location()  
-    velocity = vehicle.get_velocity()  
-    acceleration = vehicle.get_acceleration()  
+    location = vehicle.get_location()
+    velocity = vehicle.get_velocity()
+    acceleration = vehicle.get_acceleration()
     control = vehicle.get_control()
-    transform = vehicle.get_transform()  
-    vehicle_physics = vehicle.get_physics_control()
+    transform = vehicle.get_transform()
+    # vehicle_physics = vehicle.get_physics_control()
     vehicle_info = {
         'id': vehicle.id,
         'location': location,
         'velocity': velocity,
         'acceleration': acceleration,
         'control': control,
-        'transform': transform, 
-        'vehicle_pysics': vehicle_physics,
+        'transform': transform,
+        # 'vehicle_pysics': vehicle_physics,
     }
     return vehicle_info
+
+
 def batch_process_vehicles(world, func, *args, **kwargs):
     vehicles = []
-    vehicle_actors = [actor for actor in world.get_actors() if actor.type_id.startswith("vehicle")]
+    vehicle_actors = [actor for actor in world.get_actors(
+    ) if actor.type_id.startswith("vehicle")]
     with ThreadPoolExecutor() as executor:
-        futures = [executor.submit(func, world,vehicle, *args, **kwargs) for vehicle in vehicle_actors]
+        futures = [executor.submit(func, world, vehicle, *args, **kwargs)
+                   for vehicle in vehicle_actors]
         for future in futures:
             vehicles.append(future.result())
     return vehicles
 
 
 def batch_process_surround_vehicles(world, ego,  max_distance, angle, func, *args, **kwargs):
-
     vehicles = []
     for actor in world.get_actors():
         if actor.type_id.startswith("vehicle") and actor.attributes["role_name"] != "hero":
@@ -222,8 +237,6 @@ def get_trafficlight_trigger_location(traffic_light):
 
     return carla.Location(point_location.x, point_location.y, point_location.z)
 
-import numpy as np
-import math
 
 class Location:
     def __init__(self, x, y, z):
@@ -231,11 +244,13 @@ class Location:
         self.y = y
         self.z = z
 
+
 class Velocity:
     def __init__(self, x, y, z):
         self.x = x
         self.y = y
         self.z = z
+
 
 def compute_distance2D(location1, location2):
     dx = location1[0] - location2.x
@@ -249,6 +264,7 @@ def get_forward_vector(yaw):
     """
     rad = math.radians(yaw)
     return np.array([math.cos(rad), math.sin(rad)])
+
 
 def is_within_distance_obs(ego_transform, target_info, max_distance, ego_speed=0, angle_interval=None):
     """
@@ -277,12 +293,12 @@ def is_within_distance_obs(ego_transform, target_info, max_distance, ego_speed=0
 
     # Calculate the angle between A's forward vector and the vector to B
     forward_vector = get_forward_vector(ego_transform.rotation.yaw)
-    angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+    angle = math.degrees(math.acos(
+        np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
 
     # Check if angle is within the specified interval
     if angle_interval and not (angle_interval[0] <= angle <= angle_interval[1]):
         return False
-
 
     # Filter out if B's speed is greater than A's
     if target_info['velocity'].x > ego_speed:
@@ -365,7 +381,6 @@ def distance_vehicle(waypoint, vehicle_transform):
     y = waypoint.transform.location.y - loc.y
 
     return math.sqrt(x * x + y * y)
-
 
 
 def vector(location_1, location_2):

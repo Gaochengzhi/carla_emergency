@@ -15,63 +15,63 @@ area_limit:
 # DebugParameters:
 camera_height: 60
 debug_sp: False
+record: True
 
-# agents:
 agents:
   - name: "agent1"
     port: 9561
     type: "vehicle.ford.crown"
     start_point: 136
-    end_point: 251
-    # end_point: 6
+    end_point: 86
+    # end_point: 8
     main_port: 6000
-    traffic_agent_port: 9555
+    traffic_agent_port: 9981
   - name: "agent2"
     port: 9562
     type: "vehicle.ford.crown"
     start_point: 135
-    end_point: 174
+    end_point: 85
     main_port: 6000
-    traffic_agent_port: 9555
+    traffic_agent_port: 9981
   - name: "agent3"
     port: 9563
     type: "vehicle.ford.crown"
     start_point: 173
-    end_point: 60
+    end_point: 101
     main_port: 6000
-    traffic_agent_port: 9555
+    traffic_agent_port: 9981
   - name: "agent4"
     port: 9564
     type: "vehicle.ford.crown"
     start_point: 176
-    end_point: 60
+    end_point: 100
     main_port: 6000
-    traffic_agent_port: 9555
+    traffic_agent_port: 9981
   - name: "agent5"
     port: 9565
     type: "vehicle.ford.crown"
     start_point: 295
-    end_point: 109
+    end_point: 11
     main_port: 6000
-    traffic_agent_port: 9555
+    traffic_agent_port: 9981
   - name: "agent6"
     port: 9566
     type: "vehicle.ford.crown"
     start_point: 294
-    end_point: 108
+    end_point: 12
     main_port: 6000
-    traffic_agent_port: 9555
+    traffic_agent_port: 9981
   - name: "agent7"
     port: 9567
     type: "vehicle.ford.crown"
     start_point: 153
-    end_point: 289
+    end_point: 41
     main_port: 6000
-    traffic_agent_port: 9555
+    traffic_agent_port: 9981
   - name: "agent8"
     port: 9568
     type: "vehicle.ford.crown"
     start_point: 154
-    end_point: 231
+    end_point: 42
     main_port: 6000
-    traffic_agent_port: 9555
+    traffic_agent_port: 9981

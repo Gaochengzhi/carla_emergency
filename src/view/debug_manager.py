@@ -52,9 +52,19 @@ def draw_waypoints(world, waypoints, z=2, color=carla.Color(255, 0, 0), size=0.0
         world.debug.draw_point(
             waypoint.transform.location, size=size, color=color, life_time=life_time
         )
-def draw_locations(world, xs,ys, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
-    for x,y in zip(xs,ys):
+
+
+def draw_xy(world, xs, ys, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
+    for x, y in zip(xs, ys):
         carla_location = carla.Location(x=x, y=y, z=3)
+        world.debug.draw_point(
+            carla_location, size=size, color=color, life_time=life_time
+        )
+
+
+def draw_list(world, list_xy, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
+    for point in list_xy:
+        carla_location = carla.Location(x=point[0], y=point[1], z=3)
         world.debug.draw_point(
             carla_location, size=size, color=color, life_time=life_time
         )
@@ -62,13 +72,15 @@ def draw_locations(world, xs,ys, color=carla.Color(255, 0, 0), size=0.09, life_t
 
 def draw_future_locations(world, future_list, life_time=1):
     for future_location in future_list:
-        carla_location = carla.Location(x=future_location["location"].x, y=future_location["location"].y, z=future_location["location"].z)
+        carla_location = carla.Location(
+            x=future_location["location"].x, y=future_location["location"].y, z=future_location["location"].z)
         world.debug.draw_point(
             carla_location,
             size=0.2,  # Size of the point
-            color=carla.Color(255, 0, 0),  
-            life_time=life_time,  
+            color=carla.Color(255, 0, 0),
+            life_time=life_time,
         )
+
 
 def draw_transforms(world, transforms, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
     """
@@ -78,7 +90,6 @@ def draw_transforms(world, transforms, color=carla.Color(255, 0, 0), size=0.09, 
         world.debug.draw_point(
             transform.location, size=size, color=color, life_time=life_time
         )
-
 
 
 def draw_transforms_with_index(world, transforms, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):

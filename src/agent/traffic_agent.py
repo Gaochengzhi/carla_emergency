@@ -6,7 +6,7 @@ import carla
 from agent.ego_vehicle_agent import EgoVehicleAgent
 from prediction.prediction_phy import predict
 from view.debug_manager import draw_future_locations
-from util import connect_to_server, time_const, log_time_cost,batch_process_vehicles, get_speed
+from util import connect_to_server, time_const, log_time_cost, batch_process_vehicles, get_speed
 from agent.baseAgent import BaseAgent
 import time
 from tools.config_manager import config as cfg
@@ -21,14 +21,12 @@ class TrafficFlowManager(BaseAgent):
         BaseAgent.__init__(self, "TrafficFlow",
                            self.config["traffic_agent_port"])
 
-    
-
+    # @log_time_cost(name="traffic")
     @time_const(fps=5)
     def run_step(self, world):
         preception_res = batch_process_vehicles(world, predict, self.fps)
         draw_future_locations(world, preception_res, life_time=1)
         self.communi_agent.send_obj(preception_res)
-
 
     def run(self):
         client, world = connect_to_server(
@@ -38,19 +36,15 @@ class TrafficFlowManager(BaseAgent):
         time.sleep(1)
         while True:
             self.run_step(world)
-            pass
 
-        # self.traffic_manager = client.get_trafficmanager()
-        # self.communi_agent.init_subscriber("EgoVehicle",
-        #                                      self.config["ego_port"])
 
-        # time.sleep(3)
-        # ego_vehicle = get_ego_vehicle(world)
-        # while True:
-        #     # info = self.communi_agent.rec_obj("EgoVehicle")
-        #     # logging.debug(f"traffic flow received info: {info}")
-        #     self.run_step(world,ego_vehicle)
-        #     pass
+def main():
+    TrafficFlowManager().run()
+
+
+if __name__ == "__main__":
+    main()
+
     def obstacle_change_lane(self, world, obstacle, ego_v, tm, control, threshold_long_distance, ego_lane_index, current_location):
 
         # control = carla.VehicleControl()
@@ -101,11 +95,3 @@ class TrafficFlowManager(BaseAgent):
 
     def get_sensor_manager(self):
         return self.ego_vehicle.sensor_manager
-
-
-def main():
-    TrafficFlowManager().run()
-
-
-if __name__ == "__main__":
-    main()

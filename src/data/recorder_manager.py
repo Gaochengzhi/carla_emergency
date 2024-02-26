@@ -5,7 +5,7 @@ import logging
 import carla
 from agent.ego_vehicle_agent import EgoVehicleAgent
 from view.debug_manager import DebugManager as debug
-from util import spawn_vehicle, connect_to_server, time_const, batch_process_vehicles, get_ego_vehicle, get_speed, log_time_cost,get_vehicle_info
+from util import spawn_vehicle, connect_to_server, time_const, batch_process_vehicles, get_ego_vehicle, get_speed, log_time_cost, get_vehicle_info
 from agent.baseAgent import BaseAgent
 import time
 import csv
@@ -17,14 +17,15 @@ class DataRecorder(BaseAgent):
         config,
     ) -> None:
         self.config = config
-        BaseAgent.__init__(self, "DataRecorder", 
+        BaseAgent.__init__(self, "DataRecorder",
                            config["data_port"])
 
     def run(self):
+        if not self.config["record"]:
+            return
         client, world = connect_to_server(
             self.config["carla_timeout"], self.config["carla_port"])
         self.start_agent()
-        # self.ego_vehicle = get_ego_vehicle(world)
         writer = self.init_data_file(
             self.config["data_folder_path"])
 
@@ -62,7 +63,7 @@ class DataRecorder(BaseAgent):
             'w3tyre_friction',
             'w3damping_rate',
             'w4tyre_friction',
-            'w4damping_rate' 
+            'w4damping_rate'
         ])
         while True:
             self.run_step(world, writer)
@@ -71,11 +72,12 @@ class DataRecorder(BaseAgent):
     @time_const(fps=2)
     def run_step(self, world, writer):
         current_time = time.time()
-        v_list = batch_process_vehicles(world, self.write_vehicle_info, writer, time_now=current_time)
+        v_list = batch_process_vehicles(
+            world, self.write_vehicle_info, writer, time_now=current_time)
 
     def write_vehicle_info(self, world, vehicle, writer, time_now):
         # Assuming 'vehicle' is the target vehicle from which we are extracting data
-        
+
         # Basic info
         location = vehicle.get_location()
         velocity = vehicle.get_velocity()
@@ -83,15 +85,16 @@ class DataRecorder(BaseAgent):
         angular_velocity = vehicle.get_angular_velocity()
         transform = vehicle.get_transform()
         control = vehicle.get_control()
-        
+
         # Physics control info
         physics_control = vehicle.get_physics_control()
         wheels = physics_control.wheels
-        
+
         # Extracting data from physics_control
-        torque_curve = [(point.x, point.y) for point in physics_control.torque_curve]
+        torque_curve = [(point.x, point.y)
+                        for point in physics_control.torque_curve]
         center_of_mass = physics_control.center_of_mass
-        
+
         # Writing data to CSV
         writer.writerow([
             time_now,

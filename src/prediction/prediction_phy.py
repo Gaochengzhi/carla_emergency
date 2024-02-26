@@ -1,10 +1,13 @@
 from util import get_vehicle_info, log_time_cost
 
+
 class Location:
     def __init__(self, x, y, z):
         self.x = x
         self.y = y
         self.z = z
+
+
 class Vector3D:
     def __init__(self, x, y, z):
         self.x = x
@@ -12,9 +15,8 @@ class Vector3D:
         self.z = z
 
 
-
 def compute_future_state(info, dt):
-    dt= dt+3
+    dt = dt+1
     location = info['location']
     velocity = info['velocity']
     acceleration = info['acceleration']
@@ -35,7 +37,6 @@ def compute_future_state(info, dt):
         'yaw': info['transform'].rotation.yaw
     }
     return future_state
-
 
 
 def predict(world, vehicle, fps):
