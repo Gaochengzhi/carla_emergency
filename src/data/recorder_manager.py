@@ -5,10 +5,11 @@ import logging
 import carla
 from agent.ego_vehicle_agent import EgoVehicleAgent
 from view.debug_manager import DebugManager as debug
-from util import spawn_vehicle, connect_to_server, time_const, batch_process_vehicles, get_ego_vehicle, get_speed, log_time_cost, get_vehicle_info
+from util import spawn_vehicle, connect_to_server, time_const, thread_process_vehicles, get_ego_vehicle, get_speed, log_time_cost, get_vehicle_info
 from agent.baseAgent import BaseAgent
 import time
 import csv
+from threading import Lock
 
 
 class DataRecorder(BaseAgent):
@@ -52,69 +53,49 @@ class DataRecorder(BaseAgent):
             'control_steer',
             'torque_curveX',
             'torque_curveY',
-            'moi',
-            'mass',
-            'drag_coefficient',
-            'center_of_mass',
-            'w1tyre_friction',
-            'w1damping_rate',
-            'w2tyre_friction',
-            'w2damping_rate',
-            'w3tyre_friction',
-            'w3damping_rate',
-            'w4tyre_friction',
-            'w4damping_rate'
         ])
         while True:
             self.run_step(world, writer)
 
     # @log_time_cost
-    @time_const(fps=2)
+    @time_const(fps=20)
     def run_step(self, world, writer):
+        lock = Lock()
         current_time = time.time()
-        v_list = batch_process_vehicles(
-            world, self.write_vehicle_info, writer, time_now=current_time)
+        v_list = thread_process_vehicles(
+            world, self.write_vehicle_info, writer,lock ,time_now=current_time)
 
-    def write_vehicle_info(self, world, vehicle, writer, time_now):
-        # Assuming 'vehicle' is the target vehicle from which we are extracting data
+    def write_vehicle_info(self, world, vehicle, writer, lock, time_now):
+        # Acquire the lock before writing to the file
+        with lock:
+            # Basic info
+            location = vehicle.get_location()
+            velocity = vehicle.get_velocity()
+            acceleration = vehicle.get_acceleration()
+            angular_velocity = vehicle.get_angular_velocity()
+            transform = vehicle.get_transform()
+            control = vehicle.get_control()
 
-        # Basic info
-        location = vehicle.get_location()
-        velocity = vehicle.get_velocity()
-        acceleration = vehicle.get_acceleration()
-        angular_velocity = vehicle.get_angular_velocity()
-        transform = vehicle.get_transform()
-        control = vehicle.get_control()
+            # Physics control info
+            physics_control = vehicle.get_physics_control()
+            wheels = physics_control.wheels
 
-        # Physics control info
-        physics_control = vehicle.get_physics_control()
-        wheels = physics_control.wheels
+            # Extracting data from physics_control
+            torque_curve = [(point.x, point.y) for point in physics_control.torque_curve]
+            center_of_mass = physics_control.center_of_mass
 
-        # Extracting data from physics_control
-        torque_curve = [(point.x, point.y)
-                        for point in physics_control.torque_curve]
-        center_of_mass = physics_control.center_of_mass
-
-        # Writing data to CSV
-        writer.writerow([
-            time_now,
-            vehicle.id,
-            location.x, location.y, location.z,
-            velocity.x, velocity.y, velocity.z,
-            acceleration.x, acceleration.y, acceleration.z,
-            angular_velocity.x, angular_velocity.y, angular_velocity.z,
-            transform.rotation.roll, transform.rotation.pitch, transform.rotation.yaw,
-            control.brake, control.throttle, control.steer,
-            # Assuming you're interested in the first point of the torque curve for this example
-            torque_curve[0][0] if torque_curve else 0, torque_curve[0][1] if torque_curve else 0,
-            physics_control.moi,
-            physics_control.mass,
-            physics_control.drag_coefficient,
-            f"{center_of_mass.x}, {center_of_mass.y}, {center_of_mass.z}",
-            # Wheels data - assuming 4 wheels and extracting tyre friction and damping rate for each
-            *(wheels[i].tire_friction for i in range(4)),
-            *(wheels[i].damping_rate for i in range(4))
-        ])
+            # Writing data to CSV within the locked context to ensure thread safety
+            writer.writerow([
+                time_now,
+                vehicle.id,
+                location.x, location.y, location.z,
+                velocity.x, velocity.y, velocity.z,
+                acceleration.x, acceleration.y, acceleration.z,
+                angular_velocity.x, angular_velocity.y, angular_velocity.z,
+                transform.rotation.roll, transform.rotation.pitch, transform.rotation.yaw,
+                control.brake, control.throttle, control.steer,
+                torque_curve[0][0] if torque_curve else 0, torque_curve[0][1] if torque_curve else 0,
+            ])
 
     def init_data_file(self, folder_path):
         current_time = time.time()

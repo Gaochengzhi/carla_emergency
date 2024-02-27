@@ -47,11 +47,10 @@ class FrenetPlanner():
         self.right_side = 1.5
         self.ego_speed = 0
         self.controller = controller(vehicle)
-        self.target_speed = random.randint(20, 25)
+        self.target_speed = random.randint(23, 26)
         self.location = None
 
     # @log_time_cost(name="ego_planner")
-
     def run_step(self, obs, control):
         # get_info
         try:
@@ -60,9 +59,11 @@ class FrenetPlanner():
                 obs, ego_transform, self.self_id, self.ego_speed)
             # check
             if len(self.global_paths) < 2:
-                control.brake = 0.5
+                control.brake = 0.1
                 self.vehicle.apply_control(control)
                 logging.info("finish the route!")
+                # self.vehicle.destroy()
+
                 sys.exit(0)
 
             if len(self.tmp_gpath) < 2:
@@ -87,15 +88,22 @@ class FrenetPlanner():
             if self.obs_list:
                 ob = self._find_nearest_obs()
                 dis = compute_distance2D(ob, self.location)
-                control.brake =  self.compute_brake(dis)
-                # logging.info(f"brake: {control.brake}")
-                self.vehicle.apply_control(control)
-                return
+                if dis < 20 and dis > 10:
+                    control.throttle = 0
+                    control.brake = 0.4
+                    # logging.info("obstacle!")
+                    self.vehicle.apply_control(control)
+                    return
+                if dis < 10:
+                    control.brake = 0.7
+                    # logging.error("obstacle detected!")
+                    self.vehicle.apply_control(control)
+                    return
 
             # DEBUG
-            # draw_waypoints(self.world, self.tmp_gpath, z=2, life_time=0.3)
-            # draw_list(self.world, self.local_traj, size=0.05,
-            #           color=carla.Color(0, 250, 123), life_time=0.3)
+            draw_waypoints(self.world, self.tmp_gpath, z=2, life_time=0.3)
+            draw_list(self.world, self.local_traj, size=0.05,
+                      color=carla.Color(0, 250, 123), life_time=0.3)
             # run
             if len(self.local_traj) < 1:
                 return
@@ -105,11 +113,9 @@ class FrenetPlanner():
                 self.speed_traj[0]*3.6, target_waypoint)
             self.vehicle.apply_control(control)
         except Exception as e:
-            logging.error(f"plan run_step error: {e}")
-            print(e.__traceback__.tb_frame.f_globals["__file__"])
-        # 发生异常所在的行数
-            print(e.__traceback__.tb_lineno)
-            pass
+            line = sys._getframe().f_lineno
+            file = sys._getframe().f_globals["__file__"]
+            logging.error(f"ego_planner error:{e} in {file} at {line}")
 
     def update_trajectories(self):
         xy_list = np.array([[waypoint.transform.location.x, waypoint.transform.location.y]
@@ -178,7 +184,7 @@ class FrenetPlanner():
             return
         obs_list = []
         for obs_info in obs:
-            if obs_info["id"] != self_id and is_within_distance_obs(ego_transform, obs_info, 50, ego_speed, [-5, 5]):
+            if obs_info["id"] != self_id and is_within_distance_obs(ego_transform, obs_info, 60, ego_speed, [-10, 10]):
                 obs_list.append(
                     [obs_info["location"].x, obs_info["location"].y, obs_info["velocity"], obs_info["yaw"]])
         self.obs_list = obs_list
@@ -193,7 +199,3 @@ class FrenetPlanner():
                 min_distance = distance
                 nearest_ob = ob
         return nearest_ob
-
-    def compute_brake(self,distance):
-        brake = math.exp(-distance/10)
-        return brake**0.4

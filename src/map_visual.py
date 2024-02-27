@@ -95,6 +95,7 @@ MAP_DEFAULT_SCALE = 0.5
 HERO_DEFAULT_SCALE = 1.0
 
 PIXELS_AHEAD_VEHICLE = 150
+DRAW_WAYPOINT = False
 
 # ==============================================================================
 # -- Util -----------------------------------------------------------
@@ -403,7 +404,7 @@ class MapImage(object):
         self.scale = 1.0
         self.show_triggers = show_triggers
         self.show_connections = show_connections
-        self.show_spawn_points = True
+        self.show_spawn_points = False
 
         self.config = cfg.config
 
@@ -472,7 +473,7 @@ class MapImage(object):
     
     def draw_road_map(self, map_surface, carla_world, carla_map, world_to_pixel, world_to_pixel_width):
         """Draws all the roads, including lane markings, arrows and traffic signs"""
-        map_surface.fill(COLOR_ALUMINIUM_4)
+        map_surface.fill(COLOR_ALUMINIUM_2)
         precision = 0.05
 
         def lane_marking_color_to_tango(lane_marking_color):
@@ -629,10 +630,11 @@ class MapImage(object):
             # Draw lines and numbers
             pygame.draw.lines(surface, color, False, [world_to_pixel(x) for x in [start, end]], 4)
             pygame.draw.lines(surface, color, False, [world_to_pixel(x) for x in [left, start, right]], 4)
-            font = pygame.font.SysFont('Arial', 18)  # Choose an appropriate font size
-            text_surface = font.render(str(i), True, pygame.Color(255, 0, 0))  # Render the index in red
-            text_pos = world_to_pixel(end)  # Position the text at the end of the arrow or adjust as needed
-            surface.blit(text_surface, text_pos)
+            if DRAW_WAYPOINT:
+                font = pygame.font.SysFont('Arial', 18)  # Choose an appropriate font size
+                text_surface = font.render(str(i), True, pygame.Color(255, 0, 0))  # Render the index in red
+                text_pos = world_to_pixel(end)  # Position the text at the end of the arrow or adjust as needed
+                surface.blit(text_surface, text_pos)
 
 
         def draw_traffic_signs(surface, font_surface, actor, color=COLOR_ALUMINIUM_2, trigger_color=COLOR_PLUM_0):

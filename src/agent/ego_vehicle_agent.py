@@ -28,19 +28,20 @@ class EgoVehicleAgent(BaseAgent):
         self.set_communi_agent()
 
         start_point, end_point = self.get_navi_pos(world)
-        set_bird_view(world, start_point.location, 100)
-        self.vehicle = self.create_vehicle(world, start_point,
-                                           self.config["type"])
+        # set_bird_view(world, start_point.location, 100)
         self.global_route_planner = GlobalRoutePlanner(
             world.get_map(), sampling_resolution=5)
         self.global_router_waypoints = [x[0] for x in self.global_route_planner.trace_route(
             start_point.location, end_point.location)]
+        time.sleep(10)
+        self.vehicle = self.create_vehicle(world, start_point,
+                                           self.config["type"])
         self.local_planner = FrenetPlanner(
             world, map, self.global_router_waypoints, self.vehicle, self.config, VehiclePIDController)
         control = carla.VehicleControl()
         try:
             while True:
-                self.run_step(control)
+                self.run_step(world, control)
         except Exception as e:
             logging.error(f"ego vehicle agent error:{e}")
             print(e.__traceback__.tb_frame.f_globals["__file__"])
@@ -57,8 +58,9 @@ class EgoVehicleAgent(BaseAgent):
         end_point = self.waypoints[self.config["end_point"]]
         return start_point, end_point
 
-    @time_const(fps=24)
-    def run_step(self, control):
+    @time_const(fps=30)
+    def run_step(self, world, control):
+        pass
         obs = self.communi_agent.rec_obj("router")
         self.local_planner.run_step(obs, control)
 

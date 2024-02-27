@@ -6,7 +6,7 @@ import carla
 from agent.ego_vehicle_agent import EgoVehicleAgent
 from prediction.prediction_phy import predict
 from view.debug_manager import draw_future_locations
-from util import connect_to_server, time_const, log_time_cost, batch_process_vehicles, get_speed
+from util import connect_to_server, time_const, log_time_cost, thread_process_vehicles, get_speed
 from agent.baseAgent import BaseAgent
 import time
 from tools.config_manager import config as cfg
@@ -17,14 +17,14 @@ class TrafficFlowManager(BaseAgent):
         self,
     ) -> None:
         self.config = cfg.config
-        self.fps = 2
+        self.fps = 10
         BaseAgent.__init__(self, "TrafficFlow",
                            self.config["traffic_agent_port"])
 
     # @log_time_cost(name="traffic")
-    @time_const(fps=5)
+    @time_const(fps=10)
     def run_step(self, world):
-        preception_res = batch_process_vehicles(world, predict, self.fps)
+        preception_res = thread_process_vehicles(world, predict, self.fps)
         draw_future_locations(world, preception_res, life_time=1)
         self.communi_agent.send_obj(preception_res)
 

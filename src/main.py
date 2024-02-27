@@ -8,7 +8,7 @@ from data.recorder_manager import DataRecorder
 from util import destroy_all_actors, time_const, log_time_cost
 import time
 import logging
-from tools.loader import load_agents
+from tools.loader import load_agents, load_batch_agents, load_conventional_agents
 
 
 def main():
@@ -20,11 +20,15 @@ def main():
     destroy_all_actors(world)
     main_com = MainCommuicator(config)
     main_com.send_obj("start")
-    load_agents(config)
-    TrafficFlowManager().start()
-    DataRecorder(config).start()
+    # load_agents(config)
+    load_batch_agents(config)
+    # load_conventional_agents(world, TM, config)
 
-    @time_const(fps=24)
+    TrafficFlowManager().start()
+    # DataRecorder(config).start()
+
+    @log_time_cost
+    # @time_const(fps=30)
     def run_step(world):
         world.tick()
     try:

@@ -178,7 +178,7 @@ def get_vehicle_info(vehicle):
     return vehicle_info
 
 
-def batch_process_vehicles(world, func, *args, **kwargs):
+def thread_process_vehicles(world, func, *args, **kwargs):
     vehicles = []
     vehicle_actors = [actor for actor in world.get_actors(
     ) if actor.type_id.startswith("vehicle")]

@@ -2,7 +2,7 @@ import multiprocessing
 import threading
 from data.commuicate_manager import CommuniAgent
 import logging
-
+from util import time_const
 
 class BaseAgent(multiprocessing.Process):
     def __init__(self, agent_name, agent_port):
@@ -22,6 +22,11 @@ class BaseAgent(multiprocessing.Process):
         self.listener_thread.start()
 
     def listen_for_main_message(self):
+        self.main_message_operation()
+
+
+    @time_const(fps=30)
+    def main_message_operation(self):
         while not self.stop_listener.is_set():
             main_msg = self.communi_agent.rec_obj("main")
             if main_msg == "end":
