@@ -13,10 +13,10 @@ import carla
 from shapely.geometry import Polygon
 
 from navigation.local_planner import LocalPlanner, RoadOption
-from navigation.global_route_planner import GlobalRoutePlanner
+from navigation.router_baseline import GlobalRoutePlanner
 from util import (get_speed, is_within_distance,
-                               get_trafficlight_trigger_location,
-                               compute_distance)
+                  get_trafficlight_trigger_location,
+                  compute_distance)
 
 
 class BasicAgent(object):
@@ -88,19 +88,23 @@ class BasicAgent(object):
             self._offset = opt_dict['offset']
 
         # Initialize the planners
-        self._local_planner = LocalPlanner(self._vehicle, opt_dict=opt_dict, map_inst=self._map)
+        self._local_planner = LocalPlanner(
+            self._vehicle, opt_dict=opt_dict, map_inst=self._map)
         if grp_inst:
             if isinstance(grp_inst, GlobalRoutePlanner):
                 self._global_planner = grp_inst
             else:
                 print("Warning: Ignoring the given map as it is not a 'carla.Map'")
-                self._global_planner = GlobalRoutePlanner(self._map, self._sampling_resolution)
+                self._global_planner = GlobalRoutePlanner(
+                    self._map, self._sampling_resolution)
         else:
-            self._global_planner = GlobalRoutePlanner(self._map, self._sampling_resolution)
+            self._global_planner = GlobalRoutePlanner(
+                self._map, self._sampling_resolution)
 
         # Get the static elements of the scene
         self._lights_list = self._world.get_actors().filter("*traffic_light*")
-        self._lights_map = {}  # Dictionary mapping a traffic light to a wp corrspoing to its trigger volume location
+        # Dictionary mapping a traffic light to a wp corrspoing to its trigger volume location
+        self._lights_map = {}
 
     def add_emergency_stop(self, control):
         """
@@ -159,7 +163,8 @@ class BasicAgent(object):
         end_waypoint = self._map.get_waypoint(end_location)
 
         route_trace = self.trace_route(start_waypoint, end_waypoint)
-        self._local_planner.set_global_plan(route_trace, clean_queue=clean_queue)
+        self._local_planner.set_global_plan(
+            route_trace, clean_queue=clean_queue)
 
     def set_global_plan(self, plan, stop_waypoint_creation=True, clean_queue=True):
         """
@@ -196,14 +201,18 @@ class BasicAgent(object):
         vehicle_speed = get_speed(self._vehicle) / 3.6
 
         # Check for possible vehicle obstacles
-        max_vehicle_distance = self._base_vehicle_threshold + self._speed_ratio * vehicle_speed
-        affected_by_vehicle, _, _ = self._vehicle_obstacle_detected(vehicle_list, max_vehicle_distance)
+        max_vehicle_distance = self._base_vehicle_threshold + \
+            self._speed_ratio * vehicle_speed
+        affected_by_vehicle, _, _ = self._vehicle_obstacle_detected(
+            vehicle_list, max_vehicle_distance)
         if affected_by_vehicle:
             hazard_detected = True
 
         # Check if the vehicle is affected by a red traffic light
-        max_tlight_distance = self._base_tlight_threshold + self._speed_ratio * vehicle_speed
-        affected_by_tlight, _ = self._affected_by_traffic_light(self._lights_list, max_tlight_distance)
+        max_tlight_distance = self._base_tlight_threshold + \
+            self._speed_ratio * vehicle_speed
+        affected_by_tlight, _ = self._affected_by_traffic_light(
+            self._lights_list, max_tlight_distance)
         if affected_by_tlight:
             hazard_detected = True
 
@@ -286,7 +295,8 @@ class BasicAgent(object):
             if traffic_light.id in self._lights_map:
                 trigger_wp = self._lights_map[traffic_light.id]
             else:
-                trigger_location = get_trafficlight_trigger_location(traffic_light)
+                trigger_location = get_trafficlight_trigger_location(
+                    traffic_light)
                 trigger_wp = self._map.get_waypoint(trigger_location)
                 self._lights_map[traffic_light.id] = trigger_wp
 
@@ -327,8 +337,10 @@ class BasicAgent(object):
             r_ext = extent_y + self._offset
             l_ext = -extent_y + self._offset
             r_vec = ego_transform.get_right_vector()
-            p1 = ego_location + carla.Location(r_ext * r_vec.x, r_ext * r_vec.y)
-            p2 = ego_location + carla.Location(l_ext * r_vec.x, l_ext * r_vec.y)
+            p1 = ego_location + \
+                carla.Location(r_ext * r_vec.x, r_ext * r_vec.y)
+            p2 = ego_location + \
+                carla.Location(l_ext * r_vec.x, l_ext * r_vec.y)
             route_bb.extend([[p1.x, p1.y, p1.z], [p2.x, p2.y, p2.z]])
 
             for wp, _ in self._local_planner.get_plan():
@@ -336,8 +348,10 @@ class BasicAgent(object):
                     break
 
                 r_vec = wp.transform.get_right_vector()
-                p1 = wp.transform.location + carla.Location(r_ext * r_vec.x, r_ext * r_vec.y)
-                p2 = wp.transform.location + carla.Location(l_ext * r_vec.x, l_ext * r_vec.y)
+                p1 = wp.transform.location + \
+                    carla.Location(r_ext * r_vec.x, r_ext * r_vec.y)
+                p2 = wp.transform.location + \
+                    carla.Location(l_ext * r_vec.x, l_ext * r_vec.y)
                 route_bb.extend([[p1.x, p1.y, p1.z], [p2.x, p2.y, p2.z]])
 
             # Two points don't create a polygon, nothing to check
@@ -368,7 +382,8 @@ class BasicAgent(object):
         ego_front_transform.location += carla.Location(
             self._vehicle.bounding_box.extent.x * ego_transform.get_forward_vector())
 
-        opposite_invasion = abs(self._offset) + self._vehicle.bounding_box.extent.y > ego_wpt.lane_width / 2
+        opposite_invasion = abs(
+            self._offset) + self._vehicle.bounding_box.extent.y > ego_wpt.lane_width / 2
         use_bbs = self._use_bbs_detection or opposite_invasion or ego_wpt.is_junction
 
         # Get the route bounding box
@@ -382,13 +397,15 @@ class BasicAgent(object):
             if target_transform.location.distance(ego_location) > max_distance:
                 continue
 
-            target_wpt = self._map.get_waypoint(target_transform.location, lane_type=carla.LaneType.Any)
+            target_wpt = self._map.get_waypoint(
+                target_transform.location, lane_type=carla.LaneType.Any)
 
             # General approach for junctions and vehicles invading other lanes due to the offset
             if (use_bbs or target_wpt.is_junction) and route_polygon:
 
                 target_bb = target_vehicle.bounding_box
-                target_vertices = target_bb.get_world_vertices(target_vehicle.get_transform())
+                target_vertices = target_bb.get_world_vertices(
+                    target_vehicle.get_transform())
                 target_list = [[v.x, v.y, v.z] for v in target_vertices]
                 target_polygon = Polygon(target_list)
 
@@ -398,11 +415,12 @@ class BasicAgent(object):
             # Simplified approach, using only the plan waypoints (similar to TM)
             else:
 
-                if target_wpt.road_id != ego_wpt.road_id or target_wpt.lane_id != ego_wpt.lane_id  + lane_offset:
-                    next_wpt = self._local_planner.get_incoming_waypoint_and_direction(steps=3)[0]
+                if target_wpt.road_id != ego_wpt.road_id or target_wpt.lane_id != ego_wpt.lane_id + lane_offset:
+                    next_wpt = self._local_planner.get_incoming_waypoint_and_direction(steps=3)[
+                        0]
                     if not next_wpt:
                         continue
-                    if target_wpt.road_id != next_wpt.road_id or target_wpt.lane_id != next_wpt.lane_id  + lane_offset:
+                    if target_wpt.road_id != next_wpt.road_id or target_wpt.lane_id != next_wpt.lane_id + lane_offset:
                         continue
 
                 target_forward_vector = target_transform.get_forward_vector()
@@ -419,8 +437,8 @@ class BasicAgent(object):
         return (False, None, -1)
 
     def _generate_lane_change_path(self, waypoint, direction='left', distance_same_lane=10,
-                                distance_other_lane=25, lane_change_distance=25,
-                                check=True, lane_changes=1, step_distance=2):
+                                   distance_other_lane=25, lane_change_distance=25,
+                                   check=True, lane_changes=1, step_distance=2):
         """
         This methods generates a path that results in a lane change.
         Use the different distances to fine-tune the maneuver.
@@ -442,7 +460,8 @@ class BasicAgent(object):
             if not next_wps:
                 return []
             next_wp = next_wps[0]
-            distance += next_wp.transform.location.distance(plan[-1][0].transform.location)
+            distance += next_wp.transform.location.distance(
+                plan[-1][0].transform.location)
             plan.append((next_wp, RoadOption.LANEFOLLOW))
 
         if direction == 'left':
@@ -489,7 +508,8 @@ class BasicAgent(object):
             if not next_wps:
                 return []
             next_wp = next_wps[0]
-            distance += next_wp.transform.location.distance(plan[-1][0].transform.location)
+            distance += next_wp.transform.location.distance(
+                plan[-1][0].transform.location)
             plan.append((next_wp, RoadOption.LANEFOLLOW))
 
         return plan

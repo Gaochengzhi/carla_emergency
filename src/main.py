@@ -25,12 +25,14 @@ def main():
     # load_conventional_agents(world, TM, config)
 
     TrafficFlowManager().start()
-    # DataRecorder(config).start()
+    DataRecorder(config).start()
 
-    @log_time_cost
-    # @time_const(fps=30)
+    # @log_time_cost
+    @time_const(fps=config["fps"])
     def run_step(world):
         world.tick()
+        # world.wait_for_tick()
+        # time.sleep(100)
     try:
         while True:
             run_step(world)

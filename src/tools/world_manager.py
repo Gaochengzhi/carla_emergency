@@ -9,6 +9,7 @@ from util import load_points_from_csv, spawn_vehicle, get_ego_vehicle
 
 import threading
 
+
 class WorldManager:
     def __init__(self, config):
         self.config = config
@@ -100,7 +101,7 @@ class WorldManager:
         settings.synchronous_mode = True
         settings.no_rendering_mode = self.config["no_rendering_mode"]
         settings.tile_stream_distance = self.config["tile_stream_distance"]
-        settings.fixed_delta_seconds = 1.0 / self.config["frame_rate"]
+        settings.fixed_delta_seconds = self.config["fixed_delta_seconds"]
         self.world.apply_settings(settings)
 
     def init_traffic_flow(self, world, client):
@@ -118,6 +119,7 @@ class WorldManager:
         _tm = self.traffic_agent
         self.create_bg_vehicles(
             world, num_vehicles, v_types, filtered_points, _tm)
+
     def _gen_filtered_points(self, area_limit, sp_distance):
         map_name = self.map.name.split("/")[-1]
         cache_dir = "cache/sp_points"

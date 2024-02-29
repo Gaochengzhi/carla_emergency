@@ -72,7 +72,7 @@ def destroy_all_actors(world):
         if actor.type_id.startswith("vehicle") or actor.type_id.startswith("sensor"):
             actor.destroy()
     logging.debug("All actors destroyed")
-    world.tick()
+    # world.tick()
 
 
 def spawn_vehicle(world, vehicle_type, spawn_point, hero=False):
@@ -130,7 +130,7 @@ def log_time_cost(func=None, *, name=""):
 
         # Log the time cost with debug level
         logging.debug(
-            f"Function {name} {func.__name__} executed in {elapsed_time:.4f} seconds.")
+            f"Function {name} {func.__name__} executed in {elapsed_time:.5f} seconds.")
 
         return result
     return wrapper
@@ -180,8 +180,8 @@ def get_vehicle_info(vehicle):
 
 def thread_process_vehicles(world, func, *args, **kwargs):
     vehicles = []
-    vehicle_actors = [actor for actor in world.get_actors(
-    ) if actor.type_id.startswith("vehicle")]
+    vehicle_actors = world.get_actors(
+    ).filter("vehicle.*")
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(func, world, vehicle, *args, **kwargs)
                    for vehicle in vehicle_actors]
@@ -253,8 +253,8 @@ class Velocity:
 
 
 def compute_distance2D(location1, location2):
-    dx = location1[0] - location2.x
-    dy = location1[1] - location2.y
+    dx = location1[0] - location2[0]
+    dy = location1[1] - location2[1]
     return math.sqrt(dx ** 2 + dy ** 2)
 
 

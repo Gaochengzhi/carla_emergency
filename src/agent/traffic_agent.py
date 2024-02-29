@@ -4,7 +4,7 @@ import os
 import logging
 import carla
 from agent.ego_vehicle_agent import EgoVehicleAgent
-from prediction.prediction_phy import predict
+from prediction.predict_baseline import predict
 from view.debug_manager import draw_future_locations
 from util import connect_to_server, time_const, log_time_cost, thread_process_vehicles, get_speed
 from agent.baseAgent import BaseAgent
@@ -21,21 +21,24 @@ class TrafficFlowManager(BaseAgent):
         BaseAgent.__init__(self, "TrafficFlow",
                            self.config["traffic_agent_port"])
 
-    # @log_time_cost(name="traffic")
-    @time_const(fps=10)
-    def run_step(self, world):
-        preception_res = thread_process_vehicles(world, predict, self.fps)
-        draw_future_locations(world, preception_res, life_time=1)
-        self.communi_agent.send_obj(preception_res)
-
     def run(self):
+        # @log_time_cost(name="traffic")
+        @time_const(fps=self.config["fps"])
+        def run_step(world):
+            try:
+                preception_res = thread_process_vehicles(
+                    world, predict, self.fps)
+            except Exception as e:
+                logging.error(e)
+            # draw_future_locations(world, preception_res, life_time=1)
+            self.communi_agent.send_obj(preception_res)
         client, world = connect_to_server(
             self.config["carla_timeout"], self.config["carla_port"])
         self.map = world.get_map()
         self.start_agent()
         time.sleep(1)
         while True:
-            self.run_step(world)
+            run_step(world)
 
 
 def main():
