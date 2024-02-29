@@ -33,6 +33,7 @@ class FrenetPlanner():
         self.car_following_model = IDM()
         self.target_speed = random.randint(85, 90)
         self.location = None
+        self.use_car_following = False
         self.vehicle.show_debug_telemetry(True)
         self.ignore_traffic_light = config["ignore_traffic_light"]
         self.get_vehicle_info()
@@ -51,16 +52,18 @@ class FrenetPlanner():
                 logging.info("finish the route!")
                 exit()
 
-            if compute_distance(self.waypoint_buffer[0].transform.location, self.vehicle.get_location()) < 5:
+            if compute_distance(self.waypoint_buffer[0].transform.location, self.vehicle.get_location()) < 7:
                 self.waypoint_buffer.pop(0)
                 self.global_paths.pop(0)
                 self.update_waypoint_buffer(self.ego_speed)
-                self.update_trajectories()
+                self.update_trajectories(-5)
+                self.check_collison(self.obs_list, self.local_traj)
             # check collison
+            if len(self.local_traj) < 1:
+                return
 
             if compute_distance2D(self.local_traj[0], [self.location.x, self.location.y]) < 5:
                 self.local_traj.pop(0)
-                # self.update_trajectories()
                 # self.check_collison(self.obs_list, self.local_traj)
             if len(self.local_traj) < 1:
                 return
@@ -84,50 +87,76 @@ class FrenetPlanner():
             pass
 
     def adjust_traj(self, ob_list):
-        traj_adjust_opt = range(-self.left_side, self.right_side, 1)
+        traj_adjust_opt = np.arange(-self.left_side, self.right_side+1, 1)
+        for offset in traj_adjust_opt:
+            self.update_trajectories(offset=offset)
+            if not self.check_collison(ob_list, self.local_traj):
+                return
 
     def check_update_waypoints(self):
         if len(self.waypoint_buffer) < 1:
             self.update_waypoint_buffer(self.ego_speed)
         if len(self.local_traj) < 1:
             self.update_waypoint_buffer(self.ego_speed)
-            self.update_trajectories()
+            self.update_trajectories(-5)
 
-    # @log_time_cost(name="update_trajectories")
-    def update_trajectories(self):
+    @log_time_cost(name="update_trajectories")
+    def update_trajectories(self, offset=0):
         xy_list = [[waypoint.transform.location.x, waypoint.transform.location.y]
                    for waypoint in self.waypoint_buffer]
-        # xy_list = check dupulicate
+        # Remove duplicates
         xy_list = [xy_list[i] for i in range(
             len(xy_list)) if i == 0 or xy_list[i] != xy_list[i-1]]
+
         selfloc = [self.location.x, self.location.y]
         xy_list.insert(0, selfloc)
         xy_list = np.array(xy_list)
         lenxy = len(xy_list)
+
+        # Ensure there are enough points for spline interpolation
         if lenxy > 3:
-            tck, u = splprep(xy_list.T, s=5, k=3)
+            tck, u = splprep(xy_list.T, s=2, k=3)
         elif lenxy < 4 and lenxy > 1:
-            tck, u = splprep(xy_list.T, s=5, k=1)
+            tck, u = splprep(xy_list.T, s=2, k=1)
         else:
             self.local_traj = xy_list.tolist()
             return
-        u_new = np.linspace(u.min(), u.max(), lenxy*4)
+
+        u_new = np.linspace(u.min(), u.max(), lenxy * 4)
         x_fine, y_fine = splev(u_new, tck)
-        interpolated_waypoints = np.column_stack([x_fine, y_fine]).tolist()
+
+        # Calculate normal vectors for each point on the curve
+        dx, dy = np.gradient(x_fine), np.gradient(y_fine)
+        normals = np.vstack((-dy, dx))
+        normals /= np.linalg.norm(normals, axis=0)  # Normalize
+
+        # Decide on initial offset direction based on the vehicle's current position
+        # This step assumes calculation of an initial direction or side, which is simplified here.
+        # In practice, you may need to analyze the vehicle's current position relative to the path more deeply.
+
+        # Apply the desired offset to each point along the path
+        if offset != 0:
+            x_offset = x_fine + normals[0] * offset
+            y_offset = y_fine + normals[1] * offset
+            interpolated_waypoints = np.column_stack(
+                [x_offset, y_offset]).tolist()
+        else:
+            interpolated_waypoints = np.column_stack([x_fine, y_fine]).tolist()
+
         self.local_traj = interpolated_waypoints
 
     def check_collison(self, obs, array):
         ob_list = []
         for ob in obs:
             for point in array:
-                if compute_distance2D([point[0], point[1]], [ob[0], ob[1]]) < 2:
+                if compute_distance2D((point[0], point[1]), (ob[0], ob[1])) < 2:
                     ob_list.append(ob)
         if ob_list:
             self.adjust_traj(ob_list)
             return True
 
     def update_waypoint_buffer(self, speed):
-        num_push = min(int(speed*3/5)+1, len(self.global_paths))
+        num_push = min(int(speed*2/5)+1, len(self.global_paths))
         self.waypoint_buffer = self.global_paths[:num_push]
 
     def get_vehicle_info(self):
