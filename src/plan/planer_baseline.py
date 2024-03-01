@@ -14,8 +14,8 @@ import logging
 
 
 class FrenetPlanner():
-    def __init__(self, world, map, g_waypoints, vehicle, config, controller):
-        self.global_paths = g_waypoints
+    def __init__(self, world, map, router_waypoints, vehicle, config, controller):
+        self.global_waypoints = router_waypoints
         self.world = world
         self.map = map
         self.config = config
@@ -24,14 +24,16 @@ class FrenetPlanner():
         self.obs_list = []
         self.waypoint_buffer = []
         self.local_traj = []
+        self.offset = 0
         self.left_side = 1.5
         self.right_side = 1.5
         self.ego_speed = 0
         self.acceleration = 0
+        self.step = 0
         self.transform = None
         self.controller = controller(vehicle)
         self.car_following_model = IDM()
-        self.target_speed = random.randint(85, 90)
+        self.target_speed = random.randint(95, 100)
         self.location = None
         self.use_car_following = False
         self.vehicle.show_debug_telemetry(True)
@@ -39,7 +41,7 @@ class FrenetPlanner():
         self.get_vehicle_info()
         self.check_update_waypoints()
 
-    # @log_time_cost(name="ego_planner")
+    @log_time_cost(name="ego_planner")
     def run_step(self, obs, control):
         # get_info
         try:
@@ -47,32 +49,34 @@ class FrenetPlanner():
             self.get_obstacle(
                 obs, self.transform, self.self_id, self.ego_speed)
             # check finish
-            if len(self.global_paths) < 1:
+            if len(self.global_waypoints) < 1:
                 self.vehicle.destroy()
                 logging.info("finish the route!")
                 exit()
 
-            if compute_distance(self.waypoint_buffer[0].transform.location, self.vehicle.get_location()) < 7:
+            if compute_distance(self.waypoint_buffer[0].transform.location, self.vehicle.get_location()) < 5+abs(self.offset):
                 self.waypoint_buffer.pop(0)
-                self.global_paths.pop(0)
+                self.global_waypoints.pop(0)
                 self.update_waypoint_buffer(self.ego_speed)
-                self.update_trajectories(-5)
-                self.check_collison(self.obs_list, self.local_traj)
+                # self.update_trajectories(self.offset)
+                # self.check_collison(self.obs_list, self.local_traj)
             # check collison
             if len(self.local_traj) < 1:
                 return
 
             if compute_distance2D(self.local_traj[0], [self.location.x, self.location.y]) < 5:
                 self.local_traj.pop(0)
-                # self.check_collison(self.obs_list, self.local_traj)
+                self.update_trajectories(self.offset)
+            if self.check_collison(self.obs_list, self.local_traj) and self.step % 10 == 0:
+                self.adjust_trajectories(self.obs_list)
             if len(self.local_traj) < 1:
                 return
             # Frenet Optimal Trajectory plan
             # DEBUG
-            # draw_waypoints(self.world, self.waypoint_buffer,
-            #                z=1, life_time=0.1, size=0.3)
-            draw_list(self.world, self.local_traj, size=0.2,
-                      color=carla.Color(0, 250, 123), life_time=0.1)
+            draw_waypoints(self.world, self.waypoint_buffer,
+                           z=2, life_time=0.3, size=0.2)
+            # draw_list(self.world, self.local_traj, size=0.2,
+            #           color=carla.Color(0, 250, 123), life_time=0.25)
 
             # CONTROLLER
             target_waypoint = carla.Transform(
@@ -80,13 +84,14 @@ class FrenetPlanner():
             control = self.controller.run_step(
                 self.target_speed, target_waypoint)
             self.vehicle.apply_control(control)
+            self.step += 1
         except Exception as e:
             logging.error(f"plan run_step error: {e}")
             print(e.__traceback__.tb_frame.f_globals["__file__"])
             print(e.__traceback__.tb_lineno)
             pass
 
-    def adjust_traj(self, ob_list):
+    def adjust_trajectories(self, ob_list):
         traj_adjust_opt = np.arange(-self.left_side, self.right_side+1, 1)
         for offset in traj_adjust_opt:
             self.update_trajectories(offset=offset)
@@ -98,66 +103,75 @@ class FrenetPlanner():
             self.update_waypoint_buffer(self.ego_speed)
         if len(self.local_traj) < 1:
             self.update_waypoint_buffer(self.ego_speed)
-            self.update_trajectories(-5)
+            self.update_trajectories(self.offset)
 
-    @log_time_cost(name="update_trajectories")
+    # @log_time_cost(name="update_trajectories")
     def update_trajectories(self, offset=0):
         xy_list = [[waypoint.transform.location.x, waypoint.transform.location.y]
                    for waypoint in self.waypoint_buffer]
-        # Remove duplicates
+
+        # xy_list.insert(0, [self.location.x, self.location.y])
         xy_list = [xy_list[i] for i in range(
             len(xy_list)) if i == 0 or xy_list[i] != xy_list[i-1]]
 
-        selfloc = [self.location.x, self.location.y]
-        xy_list.insert(0, selfloc)
-        xy_list = np.array(xy_list)
         lenxy = len(xy_list)
-
-        # Ensure there are enough points for spline interpolation
+        xy_list = np.array(xy_list)
+        # Interpolation setup
         if lenxy > 3:
-            tck, u = splprep(xy_list.T, s=2, k=3)
-        elif lenxy < 4 and lenxy > 1:
-            tck, u = splprep(xy_list.T, s=2, k=1)
+            tck, u = splprep(xy_list.T, s=4, k=3)
+        elif lenxy > 1:
+            tck, u = splprep(xy_list.T, s=4, k=1)
         else:
             self.local_traj = xy_list.tolist()
             return
 
-        u_new = np.linspace(u.min(), u.max(), lenxy * 4)
+        u_new = np.linspace(u.min(), u.max(), lenxy * 3)
         x_fine, y_fine = splev(u_new, tck)
+        interpolated_waypoints = np.column_stack([x_fine, y_fine])
 
-        # Calculate normal vectors for each point on the curve
-        dx, dy = np.gradient(x_fine), np.gradient(y_fine)
-        normals = np.vstack((-dy, dx))
-        normals /= np.linalg.norm(normals, axis=0)  # Normalize
-
-        # Decide on initial offset direction based on the vehicle's current position
-        # This step assumes calculation of an initial direction or side, which is simplified here.
-        # In practice, you may need to analyze the vehicle's current position relative to the path more deeply.
-
-        # Apply the desired offset to each point along the path
         if offset != 0:
-            x_offset = x_fine + normals[0] * offset
-            y_offset = y_fine + normals[1] * offset
-            interpolated_waypoints = np.column_stack(
-                [x_offset, y_offset]).tolist()
-        else:
-            interpolated_waypoints = np.column_stack([x_fine, y_fine]).tolist()
+            # Compute directions and normals for offset application
+            directions = np.diff(interpolated_waypoints, axis=0)
+            normals = np.array([-directions[:, 1], directions[:, 0]]).T
+            # Normalize
+            normals = (normals.T / np.linalg.norm(normals, axis=1)).T
+            offset_vectors = normals * offset
+            # Duplicate first vector for dimensions match
+            offset_vectors = np.vstack([[offset_vectors[0]], offset_vectors])
 
-        self.local_traj = interpolated_waypoints
+            # Apply offset
+            interpolated_waypoints += offset_vectors
 
-    def check_collison(self, obs, array):
+        self.local_traj = interpolated_waypoints.tolist()
+
+    def check_collison(self, obs, traject_points):
+        def interpolate_points(start, end, spacing=2.5):
+            distance = compute_distance2D(start, end)
+            num_points = max(int(distance / spacing), 2)
+            x_spacing = (end[0] - start[0]) / (num_points - 1)
+            y_spacing = (end[1] - start[1]) / (num_points - 1)
+            return [(start[0] + i * x_spacing, start[1] + i * y_spacing) for i in range(num_points)]
+
         ob_list = []
+        start_location = (self.location.x, self.location.y)
+        end_location = traject_points[0]
+        # Interpolate between self.location and the first trajectory point
+        interpolated_points = interpolate_points(start_location, end_location)
+        # Combine interpolated points with the rest of the trajectory points
+        traject_points = interpolated_points + traject_points
+        draw_list(self.world, traject_points, size=0.2,
+                  color=carla.Color(210, 250, 123), life_time=0.25)
+
         for ob in obs:
-            for point in array:
+            for point in traject_points:
                 if compute_distance2D((point[0], point[1]), (ob[0], ob[1])) < 2:
                     ob_list.append(ob)
-        if ob_list:
-            self.adjust_traj(ob_list)
-            return True
+                    break
+        return ob_list
 
     def update_waypoint_buffer(self, speed):
-        num_push = min(int(speed*2/5)+1, len(self.global_paths))
-        self.waypoint_buffer = self.global_paths[:num_push]
+        num_push = min(int(speed*2/5)+1, len(self.global_waypoints))
+        self.waypoint_buffer = self.global_waypoints[:num_push]
 
     def get_vehicle_info(self):
         location = self.vehicle.get_location()
@@ -201,7 +215,8 @@ class FrenetPlanner():
             distance_to_right_side = max(0, lane_width / 2 + right_offset)
         else:
             distance_to_left_side = distance_to_right_side = 0.5
-        return distance_to_left_side-1, distance_to_right_side-1
+        # print(distance_to_left_side, distance_to_right_side)
+        return distance_to_left_side-0.2, distance_to_right_side-0.2
 
     def get_obstacle(self, obs, ego_transform, self_id, ego_speed):
         self.obs_list = []
@@ -209,7 +224,7 @@ class FrenetPlanner():
             return
         obs_list = []
         for obs_info in obs:
-            if obs_info["id"] != self_id and is_within_distance_obs(ego_transform, obs_info, 50, ego_speed, [-65, 65]):
+            if obs_info["id"] != self_id and is_within_distance_obs(ego_transform, obs_info, 60, ego_speed, [-65, 65]):
                 obs_list.append(
                     [obs_info["location"].x, obs_info["location"].y, obs_info["velocity"], obs_info["yaw"]])
         self.obs_list = obs_list

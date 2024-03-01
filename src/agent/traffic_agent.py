@@ -3,7 +3,7 @@ import math
 import os
 import logging
 import carla
-from agent.ego_vehicle_agent import EgoVehicleAgent
+from agent.baseline_vehicle_agent import BaselineVehicleAgent
 from prediction.predict_baseline import predict
 from view.debug_manager import draw_future_locations
 from util import connect_to_server, time_const, log_time_cost, thread_process_vehicles, get_speed

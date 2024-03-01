@@ -19,15 +19,15 @@ class WorldManager:
         self.traffic_agent = self.set_traffic_agent()
         self.set_weather()
         self.set_world_parameter()
-        self.start_init_traffic_flow_thread()
+        # self.start_init_traffic_flow_thread()
 
-    def start_init_traffic_flow_thread(self):
-        thread = threading.Thread(target=self.init_traffic_flow_thread)
-        thread.start()
+    # def start_init_traffic_flow_thread(self):
+    #     thread = threading.Thread(target=self.init_traffic_flow_thread)
+    #     thread.start()
 
-    def init_traffic_flow_thread(self):
-        time.sleep(2)
-        self.init_traffic_flow(self.world, self.client)
+    # def init_traffic_flow_thread(self):
+    #     time.sleep(2)
+    #     self.init_traffic_flow(self.world, self.client)
 
     def choose_a_point(self, waypoint_list):
         choosen_waypoint = random.choice(waypoint_list)
@@ -104,21 +104,21 @@ class WorldManager:
         settings.fixed_delta_seconds = self.config["fixed_delta_seconds"]
         self.world.apply_settings(settings)
 
-    def init_traffic_flow(self, world, client):
-        spawn_points_distance = self.config["spwan_points_distance"]
-        area_limit = self.config["area_limit"]
-        num_vehicles = self.config["num_vehicles"]
-        v_types = self.config["bg_vehicle_type"]
-        filtered_points = self._gen_filtered_points(
-            area_limit, spawn_points_distance
-        )
-        if self.config["debug_sp"]:
-            from view.debug_manager import draw_transforms_with_index
-            draw_transforms_with_index(
-                self.world, filtered_points, life_time=1000)
-        _tm = self.traffic_agent
-        self.create_bg_vehicles(
-            world, num_vehicles, v_types, filtered_points, _tm)
+    # def init_traffic_flow(self, world, client):
+    #     spawn_points_distance = self.config["spwan_points_distance"]
+    #     area_limit = self.config["area_limit"]
+    #     num_vehicles = self.config["num_vehicles"]
+    #     v_types = self.config["bg_vehicle_type"]
+    #     filtered_points = self._gen_filtered_points(
+    #         area_limit, spawn_points_distance
+    #     )
+    #     if self.config["debug_sp"]:
+    #         from view.debug_manager import draw_transforms_with_index
+    #         draw_transforms_with_index(
+    #             self.world, filtered_points, life_time=1000)
+    #     _tm = self.traffic_agent
+    #     self.create_bg_vehicles(
+    #         world, num_vehicles, v_types, filtered_points, _tm)
 
     def _gen_filtered_points(self, area_limit, sp_distance):
         map_name = self.map.name.split("/")[-1]
@@ -146,28 +146,28 @@ class WorldManager:
                         f"{sp.location.x},{sp.location.y},{sp.location.z},{sp.rotation.yaw},{sp.rotation.pitch},{sp.rotation.roll}\n")
             return filtered_points
 
-    def create_bg_vehicles(self, world, num_vehicles, vehicle_types, spawn_points, traffic_agent):
-        bg_vehicles = []
-        for _ in range(num_vehicles):
-            try:
-                spawn_point = self.choose_a_point(spawn_points)
-                v_type = random.choice(vehicle_types)
-                vehicle = spawn_vehicle(world,
-                                        v_type, spawn_point)
-                while vehicle is None:
-                    logging.warn(
-                        f"spawn_actor{v_type} failed, trying another start point...")
-                    v_type = random.choice(vehicle_types)
-                    spawn_point = self.choose_a_point(spawn_points)
-                    vehicle = spawn_vehicle(world, v_type, spawn_point)
-                if vehicle is not None:
-                    vehicle.set_autopilot(True, traffic_agent.get_port())
-                bg_vehicles.append(vehicle)
-            except Exception as e:
-                logging.error(f"create traffic flow error:{e}")
-        logging.debug(
-            f"spawned {len(bg_vehicles)} vehicles")
-        return bg_vehicles
+    # def create_bg_vehicles(self, world, num_vehicles, vehicle_types, spawn_points, traffic_agent):
+    #     bg_vehicles = []
+    #     for _ in range(num_vehicles):
+    #         try:
+    #             spawn_point = self.choose_a_point(spawn_points)
+    #             v_type = random.choice(vehicle_types)
+    #             vehicle = spawn_vehicle(world,
+    #                                     v_type, spawn_point)
+    #             while vehicle is None:
+    #                 logging.warn(
+    #                     f"spawn_actor{v_type} failed, trying another start point...")
+    #                 v_type = random.choice(vehicle_types)
+    #                 spawn_point = self.choose_a_point(spawn_points)
+    #                 vehicle = spawn_vehicle(world, v_type, spawn_point)
+    #             if vehicle is not None:
+    #                 vehicle.set_autopilot(True, traffic_agent.get_port())
+    #             bg_vehicles.append(vehicle)
+    #         except Exception as e:
+    #             logging.error(f"create traffic flow error:{e}")
+    #     logging.debug(
+    #         f"spawned {len(bg_vehicles)} vehicles")
+    #     return bg_vehicles
 
     def get_map(self):
         return self.map

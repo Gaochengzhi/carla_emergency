@@ -3,7 +3,7 @@ import math
 import os
 import logging
 import carla
-from agent.ego_vehicle_agent import EgoVehicleAgent
+from agent.baseline_vehicle_agent import BaselineVehicleAgent
 from view.debug_manager import DebugManager as debug
 from util import spawn_vehicle, connect_to_server, time_const, thread_process_vehicles, get_ego_vehicle, get_speed, log_time_cost, get_vehicle_info
 from agent.baseAgent import BaseAgent

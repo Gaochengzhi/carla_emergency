@@ -1,4 +1,4 @@
-from agent.ego_vehicle_agent import EgoVehicleAgent
+from agent.baseline_vehicle_agent import BaselineVehicleAgent
 import random
 
 
@@ -6,13 +6,13 @@ def load_agents(config):
     for i, agent_info in enumerate(config["agents"]):
         agent_info["ignore_traffic_light"] = False
         agent_info["fps"] = config["fps"]
-        EgoVehicleAgent(agent_info).start()
+        BaselineVehicleAgent(agent_info).start()
 
 
 def load_batch_agents(config):
 
-    config["spwan_list"] = random.sample(range(0, 101), 18)
-    config["target_list"] = random.sample(range(103, 220), 18)
+    config["spwan_list"] = random.sample(range(0, 101), 10)
+    config["target_list"] = random.sample(range(103, 220), 10)
     agent_info = {}
     for i, spawn_target in enumerate(zip(config["spwan_list"], config["target_list"])):
         agent_info["name"] = f"agent_{i}"
@@ -24,7 +24,7 @@ def load_batch_agents(config):
         agent_info["traffic_agent_port"] = config["traffic_agent_port"]
         agent_info["main_port"] = config["main_port"]
         agent_info["ignore_traffic_light"] = False
-        EgoVehicleAgent(agent_info).start()
+        BaselineVehicleAgent(agent_info).start()
 
 
 def load_conventional_agents(world, tm, config):

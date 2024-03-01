@@ -8,6 +8,9 @@ class SensorManager:
         self.vehicle = vehicle
         self.add_radar()
         self.add_obstacle_sensor()
+        self.camera_queue = []
+        self.radar_queue = []
+
         # self.add_camera()
 
     def add_camera(self):

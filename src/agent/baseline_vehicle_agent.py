@@ -14,7 +14,7 @@ import math
 import random
 
 
-class EgoVehicleAgent(BaseAgent):
+class BaselineVehicleAgent(BaseAgent):
     def __init__(self, config):
         self.config = config
         BaseAgent.__init__(
@@ -43,14 +43,14 @@ class EgoVehicleAgent(BaseAgent):
         self.global_router_waypoints = [x[0] for x in self.global_route_planner.trace_route(
             start_point.location, end_point.location)]
         # debug
-        draw_waypoints_arraw(
-            world, self.global_router_waypoints, 1, life_time=100)
+        # draw_waypoints_arraw(
+        #     world, self.global_router_waypoints, 1, life_time=100)
         self.local_planner = FrenetPlanner(
             world, map, self.global_router_waypoints, self.vehicle, self.config, VehiclePIDController)
         control = carla.VehicleControl()
         try:
             while True:
-                # set_bird_view(world, self.vehicle.get_location(), 50)
+                set_bird_view(world, self.vehicle.get_location(), 80)
                 run_step(world, control)
         except Exception as e:
             logging.error(f"ego vehicle agent error:{e}")
