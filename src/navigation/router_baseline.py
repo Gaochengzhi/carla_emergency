@@ -85,8 +85,18 @@ class GlobalRoutePlanner(object):
                             destination_waypoint, path)
                         if closest_index > destination_index:
                             break
+        cleaned_route_trace = []
+        seen = set()
+        for waypoint, road_option in route_trace:
+            loc = (waypoint.transform.location.x,
+                   waypoint.transform.location.y)
+            if loc not in seen:
+                cleaned_route_trace.append((waypoint, road_option))
+                seen.add(loc)
 
-        return route_trace
+        return cleaned_route_trace
+
+        # return route_trace
 
     def _build_topology(self):
         """

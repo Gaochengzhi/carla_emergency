@@ -3,7 +3,7 @@ from data.commuicate_manager import CommuniAgent
 from util import connect_to_server, spawn_vehicle, time_const, is_within_distance, compute_distance, log_time_cost, txt_to_points
 from view.debug_manager import draw_waypoints_arraw, draw_transforms, set_bird_view
 
-from preception.sensor_manager import SensorManager
+from perception.sensor_manager import SensorManager
 from navigation.router_baseline import GlobalRoutePlanner
 from navigation.controller_baseline import VehiclePIDController
 from plan.planer_baseline import FrenetPlanner
@@ -22,9 +22,9 @@ class BaselineVehicleAgent(BaseAgent):
         self.count = 0
 
     def run(self):
+        # print pid
         @time_const(fps=self.config["fps"])
         def run_step(world, control):
-            pass
             obs = self.communi_agent.rec_obj("router")
             self.local_planner.run_step(obs, control)
 
@@ -34,10 +34,12 @@ class BaselineVehicleAgent(BaseAgent):
         self.set_communi_agent()
 
         start_point, end_point = self.get_navi_pos(world)
-        set_bird_view(world, start_point.location, 50)
+        set_bird_view(world, start_point.location, 100)
         self.vehicle = self.create_vehicle(world, start_point,
                                            self.config["type"])
 
+        self.sensor_manager = SensorManager(world, self.vehicle, self.config)
+        self.controller = VehiclePIDController(self.vehicle)
         self.global_route_planner = GlobalRoutePlanner(
             world.get_map(), sampling_resolution=5)
         self.global_router_waypoints = [x[0] for x in self.global_route_planner.trace_route(
@@ -46,11 +48,11 @@ class BaselineVehicleAgent(BaseAgent):
         # draw_waypoints_arraw(
         #     world, self.global_router_waypoints, 1, life_time=100)
         self.local_planner = FrenetPlanner(
-            world, map, self.global_router_waypoints, self.vehicle, self.config, VehiclePIDController)
+            world, map, self.global_router_waypoints, self.vehicle, self.config, self.controller, self.sensor_manager)
         control = carla.VehicleControl()
         try:
             while True:
-                set_bird_view(world, self.vehicle.get_location(), 80)
+                # set_bird_view(world, self.vehicle.get_location(), 100)
                 run_step(world, control)
         except Exception as e:
             logging.error(f"ego vehicle agent error:{e}")

@@ -1,4 +1,4 @@
-from util import get_vehicle_info, log_time_cost
+from util import get_vehicle_info, log_time_cost, compute_3D21d
 
 
 class Location:
@@ -16,7 +16,7 @@ class Vector3D:
 
 
 def compute_future_state(info, dt):
-    dt = dt + 4.9
+    dt = dt + 1
     location = info['location']
     velocity = info['velocity']
     acceleration = info['acceleration']
@@ -26,14 +26,14 @@ def compute_future_state(info, dt):
         z=location.z + velocity.z * dt + 0.5 * acceleration.z * dt ** 2
     )
     future_velocity = Vector3D(
-        x=velocity.x + acceleration.x * dt,
-        y=velocity.y + acceleration.y * dt,
-        z=velocity.z + acceleration.z * dt
+        x=velocity.x,
+        y=velocity.y,
+        z=velocity.z
     )
     future_state = {
         'id': info['id'],
         'location': future_location,
-        'velocity': future_velocity,
+        'velocity': compute_3D21d(future_velocity),
         'yaw': info['transform'].rotation.yaw
     }
     return future_state

@@ -30,7 +30,7 @@ class TrafficFlowManager(BaseAgent):
                     world, predict, self.fps)
             except Exception as e:
                 logging.error(e)
-            # draw_future_locations(world, preception_res, life_time=1)
+            draw_future_locations(world, preception_res, life_time=1)
             self.communi_agent.send_obj(preception_res)
         client, world = connect_to_server(
             self.config["carla_timeout"], self.config["carla_port"])

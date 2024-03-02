@@ -22,7 +22,7 @@ def main():
     main_com.send_obj("start")
     load_agents(config)
     # load_batch_agents(config)
-    # load_conventional_agents(world, TM, config)
+    load_conventional_agents(world, TM, config)
 
     TrafficFlowManager().start()
     DataRecorder(config).start()
