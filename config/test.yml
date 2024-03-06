@@ -5,7 +5,7 @@ actor_active_distance: 100
 hybrid_physics_radius: 30
 tile_stream_distance: 100
 # TrafficParameters:
-num_vehicles: 100
+num_vehicles: 0
 spwan_points_distance: 20
 area_limit:
   min_x: -500
@@ -16,6 +16,25 @@ area_limit:
 camera_height: 60
 debug_sp: False
 record: True
+
+spwan_list:
+  - 136
+  - 135
+  - 173
+  - 176
+  - 295
+  - 294
+  - 153
+  - 154
+target_list:
+  - 86
+  - 85
+  - 101
+  - 100
+  - 11
+  - 12
+  - 41
+  - 42
 
 agents:
   - name: "agent1"

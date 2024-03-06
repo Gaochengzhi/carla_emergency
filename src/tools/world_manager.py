@@ -35,7 +35,7 @@ class WorldManager:
 
     def set_traffic_agent(self):
         traffic_agent = self.client.get_trafficmanager()
-        traffic_agent.set_synchronous_mode(True)
+        traffic_agent.set_synchronous_mode(False)
         traffic_agent.set_hybrid_physics_radius(
             self.config["hybrid_physics_radius"])
         # for larger map
@@ -97,7 +97,7 @@ class WorldManager:
     def set_world_parameter(self):
         settings = self.world.get_settings()
         settings.actor_active_distance = self.config["actor_active_distance"]
-        settings.synchronous_mode = True
+        settings.synchronous_mode = False
         settings.no_rendering_mode = self.config["no_rendering_mode"]
         settings.tile_stream_distance = self.config["tile_stream_distance"]
         settings.fixed_delta_seconds = 1.0 / self.config["frame_rate"]
