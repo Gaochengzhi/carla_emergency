@@ -6,7 +6,8 @@ import math
 import random
 import sys
 import carla
-from util import compute_distance, is_within_distance_obs, log_time_cost, compute_3D21d, compute_distance2D, compute_magnitude_angle, interpolate_points
+from util import compute_distance, log_time_cost, compute_3D21d, compute_distance2D, interpolate_points
+from cythoncode.cutil import is_within_distance_obs, compute_magnitude_angle
 from view.debug_manager import draw_waypoints, draw_list
 from scipy.interpolate import splprep, splev
 from plan.carFollowingModel import IDM
@@ -22,15 +23,15 @@ class FrenetPlanner():
         self.map = map
         self.config = config
         self.vehicle = vehicle
-        self.self_id = vehicle.id
+        self.id = vehicle.id
         self.obs_list = []
         self.waypoint_buffer = []
-        self.local_traj = []
-        self.offset = 0
-        self.ego_speed = 0
-        self.acceleration = 0
-        self.step = 0
+        self.trajectories = []
+        self.target_offset = 0
+        self.current_offset = 0
+        self.speed = 0
         self.transform = None
+        self.location = None
         self.controller = controller
         self.sensor_manager = sensor_manager
         self.perception = FakePerception(vehicle, config)
@@ -38,106 +39,131 @@ class FrenetPlanner():
         self.use_car_following = False
         self.max_speed = 33
         self.target_speed = 20
-        self.location = None
+        self.step = 0
         self.vehicle.show_debug_telemetry(True)
-        self.ignore_traffic_light = config["ignore_traffic_light"]
         self.check_update_waypoints()
         self.left_side, self.right_side = self.perception.get_road_edge(
-            self.waypoint_buffer[-1])
+            self.waypoint_buffer[0])
         self.profiler = Profiler(interval=0.001)
 
+    def adjust_offset(self, direction):
+        self.target_offset += direction
+        self.update_trajectories(self.target_offset)
+        if self.check_collison():
+            self.target_offset -= direction
+            self.update_trajectories(self.target_offset)
     # @log_time_cost(name="ego_planner")
+
     def run_step(self, obs, control):
-        # get_info
         try:
-            self.profiler.start()
-            # check finish
-            self.update_info()
-            self.get_obstacle(
-                obs, self.transform, self.self_id, self.ego_speed)
-
-            if compute_distance(self.waypoint_buffer[0].transform.location, self.location) < 5+abs(int(self.offset)):
-                self.waypoint_buffer.pop(0)
-                self.global_waypoints.pop(0)
-                if len(self.global_waypoints) < 1:
-                    self.vehicle.destroy()
-                    logging.info("finish the route!")
-                    exit()
-                self.update_waypoint_buffer()
-                self.left_side, self.right_side = self.perception.get_road_edge(
-                    self.waypoint_buffer[-1])
-                # self.update_trajectories(self.offset)
-            # check collison
-            if len(self.local_traj) < 1:
-                return
-
-            if compute_distance2D(self.local_traj[0], [self.location.x, self.location.y]) < 5:
-                self.local_traj.pop(0)
-                self.update_trajectories(self.offset)
-
-            if len(self.local_traj) < 1:
-                return
+            # self.profiler.start()
+            self.ego_state_update()
+            self.obstacle_update(obs)
+            self.check_waypoints()
+            self.check_trajectories()
+            self.check_traffic_light()
             if self.step % 8 == 0:
-                if self.check_collison(self.obs_list, self.local_traj):
+                if self.check_collison():
                     self.adjust_trajectories()
                 else:
-                    if self.step % 16 == 0:
-                        if self.offset > 0.1:
-                            self.offset -= 0.1
-                        elif self.offset < -0.1:
-                            self.offset += 0.1
-                    # print(self.offset)
+                    self.use_car_following = False
+                    self.target_speed = self.max_speed
+            if self.step % 26 == 0:
+                if self.target_offset > 0.1:
+                    self.adjust_offset(-1)
+                elif self.target_offset < -0.1:
+                    self.adjust_offset(1)
 
-            if len(self.local_traj) < 1:
+            if len(self.trajectories) < 1:
                 return
-            # Frenet Optimal Trajectory plan
             # DEBUG
             draw_waypoints(self.world, self.waypoint_buffer,
-                           z=2, life_time=0.3, size=0.2)
-            draw_list(self.world, self.local_traj, size=0.2,
+                           z=2, life_time=0.3, size=0.1)
+            draw_list(self.world, self.trajectories, size=0.1,
                       color=carla.Color(0, 250, 123), life_time=0.25)
+
             if self.use_car_following:
-                ob = self.sensor_manager.obstacle
+                ob = self.sensor_manager.radar_res["front"]
                 if ob:
-                    front_v = ob.velocity
-                    distance_s = ob.distance
+                    front_v = ob[1]
+                    distance_s = ob[0]
                     a = self.car_following_model.calc_acc(
-                        front_v, distance_s, self.ego_speed)
-                    self.target_speed = max(0, self.ego_speed + a)
+                        front_v, distance_s, self.speed)
+                    self.target_speed = max(0, self.speed + a)
+                else:
+                    self.target_speed = 10
 
             # CONTROLLER
             target_waypoint = carla.Transform(
-                carla.Location(x=self.local_traj[0][0], y=self.local_traj[0][1], z=1))
+                carla.Location(x=self.trajectories[0][0], y=self.trajectories[0][1]))
             control = self.controller.run_step(
                 self.target_speed, target_waypoint)
+            # control = self.controller.run_step(
+            #     self.target_speed, self.trajectories)
+
             self.vehicle.apply_control(control)
             self.step += 1
-            self.profiler.stop()
-            # self.profiler.print()
 
         except Exception as e:
             logging.error(f"plan run_step error: {e}")
             logging.error(e.__traceback__.tb_frame.f_globals["__file__"])
             logging.error(e.__traceback__.tb_lineno)
-            logging.error(self.obs_list)
             pass
 
+    def check_radar(self, offset=0):
+        """
+        Check if there is an obstacle in the specified direction.
+
+        Negative offset checks left, positive offset checks right, 0 checks front
+        return True if there is an obstacle
+        """
+        direction = "left" if offset < -2 else "right" if offset > 2 else "front"
+        return self.sensor_manager.radar_res.get(direction)
+
+    def check_trajectories(self):
+        if compute_distance2D(self.trajectories[0], [self.location.x, self.location.y]) < 5:
+            self.update_current_offset()
+            angle = self.get_relative_waypoint_angle()
+            if self.check_radar(angle):
+                self.target_speed = 0
+            else:
+                self.target_speed = self.max_speed
+            self.trajectories.pop(0)
+            self.update_trajectories(self.target_offset)
+
+    def check_waypoints(self):
+        if compute_distance(self.waypoint_buffer[0].transform.location, self.location) < 5+abs(int(self.target_offset)):
+            self.waypoint_buffer.pop(0)
+            self.global_waypoints.pop(0)
+            if len(self.global_waypoints) < 1:
+                self.vehicle.destroy()
+                logging.info("finish the route!")
+                exit()
+            self.update_waypoint_buffer()
+            self.left_side, self.right_side = self.perception.get_road_edge(
+                self.waypoint_buffer[0])
+
+            self.check_road_edge()
+
+    def check_road_edge(self):
+        if self.target_offset > self.right_side:
+            self.target_offset = self.right_side
+        if self.target_offset < -self.left_side:
+            self.target_offset = -self.left_side
+
     def adjust_trajectories(self):
-
-        # Negative, starting close to zero
-        left_options = np.arange(-1, -self.left_side - 1, -1)
-        right_options = np.arange(1, self.right_side + 1, 1)
+        left_options = np.arange(self.target_offset, -self.left_side - 1, -1)
+        right_options = np.arange(
+            self.target_offset+1, self.right_side + 1, 1)
         traj_adjust_options = np.concatenate(
-            ([0], left_options, right_options))
-        # Store tuples of (offset, highest_velocity, nearest_index)
+            (left_options, right_options))
         collision_info = []
-
+        """
+        collision_info: [(offset, highest_velocity, index)]
+        """
         for offset in traj_adjust_options:
-            # Apply offset to calculate the new trajectory without modifying the original yet
             self.update_trajectories(offset)
-            collision_result = self.check_collison(
-                self.obs_list, self.local_traj)
-
+            collision_result = self.check_collison()
             if collision_result:
                 # Find the highest velocity among collisions for this offset
                 highest_velocity = max(collision_result, key=lambda x: x[1])[1]
@@ -146,88 +172,78 @@ class FrenetPlanner():
                     (offset, highest_velocity, nearest_index))
             else:
                 # Found a collision-free offset, apply it and return
-                self.offset = offset
-                return  # Exit as we've applied a suitable adjustment
-
+                self.target_offset = offset
+                return True
         # If here, no collision-free offset was found; decide based on obstacle velocities and distances
         if collision_info:
             # Choose the offset related to the nearest highest-velocity obstacle
-            # chosen_offset = max(collision_info, key=lambda x: (x[2], x[1]))[0]
-            chosen_offset = 0
-            self.offset = chosen_offset
-            self.update_trajectories(chosen_offset)
+            chosen_offset, chosen_velocity, _ = max(
+                collision_info, key=lambda x: (x[1], -x[2]))
             self.use_car_following = True
+        # Check if the chosen velocity is significantly higher than the current velocity
+            velocity_threshold = 1  # Adjust this value according to your preference
+            if chosen_velocity >= self.speed + velocity_threshold:
+                self.target_offset = chosen_offset
+                self.update_trajectories(chosen_offset)
+                return False
 
     def check_update_waypoints(self):
         if len(self.waypoint_buffer) < 1:
             self.update_waypoint_buffer()
-        if len(self.local_traj) < 1:
+        if len(self.trajectories) < 1:
             self.update_waypoint_buffer()
-            self.update_trajectories(self.offset)
+            self.update_trajectories(self.target_offset)
 
     # @log_time_cost(name="update_trajectories")
     def update_trajectories(self, offset=0):
         xy_list = [[waypoint.transform.location.x, waypoint.transform.location.y]
                    for waypoint in self.waypoint_buffer]
-
-        # xy_list.insert(0, [self.location.x, self.location.y])
-        # xy_list = [xy_list[i] for i in range(
-        #     len(xy_list)) if i == 0 or xy_list[i] != xy_list[i-1]]
-
         lenxy = len(xy_list)
         xy_list = np.array(xy_list)
-        # Interpolation setup
-        if lenxy > 3:
-            tck, u = splprep(xy_list.T, s=4, k=3)
+        if lenxy > 5:
+            tck, u = splprep(xy_list.T, s=6, k=5)
         elif lenxy > 1:
-            tck, u = splprep(xy_list.T, s=4, k=1)
+            tck, u = splprep(xy_list.T, s=6, k=lenxy-1)
         else:
-            self.local_traj = xy_list.tolist()
+            self.trajectories = xy_list.tolist()
             return
-
         u_new = np.linspace(u.min(), u.max(), lenxy * 2)
         x_fine, y_fine = splev(u_new, tck)
         interpolated_waypoints = np.column_stack([x_fine, y_fine])
-
-        if offset != 0:
+        if abs(offset) > 0.1:
             # Compute directions and normals for offset application
             directions = np.diff(interpolated_waypoints, axis=0)
             normals = np.array([-directions[:, 1], directions[:, 0]]).T
-            # Normalize
-            normals = (normals.T / np.linalg.norm(normals, axis=1)).T
+            # Normalize without np.linalg.norm
+            magnitudes = np.sqrt(
+                normals[:, 0]**2 + normals[:, 1]**2).reshape(-1, 1)
+            normals = normals / magnitudes
             offset_vectors = normals * offset
-            # Duplicate first vector for dimensions match
             offset_vectors = np.vstack([[offset_vectors[0]], offset_vectors])
-
-            # Apply offset
             interpolated_waypoints += offset_vectors
+        self.trajectories = interpolated_waypoints.tolist()
 
-        self.local_traj = interpolated_waypoints.tolist()
-
-    def check_collison(self, obs, traject_points):
+    def check_collison(self):
+        """
+        collision_info: [obstacle, velocity, index(distence)]
+        """
         start_location = [self.location.x, self.location.y]
-        end_location = traject_points[0]
+        end_location = self.trajectories[0]
         interpolated_points = interpolate_points(
-            start_location, end_location, 2)
-        traject_points = interpolated_points + traject_points
-        # debug
-        draw_list(self.world, traject_points, size=0.1,
-                  color=carla.Color(110, 25, 144), life_time=0.15)
+            start_location, end_location, 1)
+        self.trajectories = interpolated_points + self.trajectories
+        # draw_list(self.world, self.trajectories, size=0.1,
+        #           color=carla.Color(110, 25, 144), life_time=0.15)
         collision_info = []
-        for ob in obs:
-            for index, point in enumerate(traject_points):
-                if compute_distance2D((point[0], point[1]), (ob[0], ob[1])) < 2.3:
+        for ob in self.obs_list:
+            for index, point in enumerate(self.trajectories):
+                if compute_distance2D((point[0], point[1]), (ob[0], ob[1])) < 2.5:
                     collision_info.append((ob, ob[2], index))
                     break
-        if collision_info:
-            return collision_info
-        else:
-            self.use_car_following = False
-            self.target_speed = self.max_speed
-            return False
+        return collision_info if collision_info else False
 
     def update_waypoint_buffer(self):
-        num_push = min(int(self.ego_speed*2/5)+2,
+        num_push = min(int(self.speed*2/5)+1,
                        len(self.global_waypoints), 13)
         self.waypoint_buffer = self.global_waypoints[:num_push]
         if num_push < 3:
@@ -255,32 +271,69 @@ class FrenetPlanner():
                 curvature += (1 - dot)
         if curvature > 0.0001:
             self.target_speed = max(
-                12, self.max_speed * math.exp(-10*curvature))
+                12, self.max_speed * math.exp(-6*curvature))
         else:
             self.target_speed = self.max_speed
 
-    def get_obstacle(self, obs, ego_transform, self_id, ego_speed):
+    def obstacle_update(self, obs):
         self.obs_list = []
         if not obs:
             return
         obs_list = []
-        ego_location = [ego_transform.location.x, ego_transform.location.y]
-        ego_yaw = ego_transform.rotation.yaw
+        ego_location = np.array(
+            [self.transform.location.x, self.transform.location.y], dtype=np.float32)
+        ego_yaw = self.transform.rotation.yaw
         for obs_info in obs:
-            if obs_info["id"] != self_id:
-                target_location = [
-                    obs_info["location"].x, obs_info["location"].y]
+            if obs_info["id"] != self.id:
+                target_location = np.array([
+                    obs_info["location"].x, obs_info["location"].y], dtype=np.float32)
                 target_velocity = obs_info["velocity"]
-
-                if is_within_distance_obs(ego_location, target_location, 60, ego_speed, target_velocity, ego_yaw, [-65, 65]):
+                if is_within_distance_obs(ego_location, target_location, 50, self.speed, target_velocity, ego_yaw, [-155, 155]):
                     obs_list.append(
                         [obs_info["location"].x, obs_info["location"].y, obs_info["velocity"], obs_info["yaw"]])
-
         self.obs_list = obs_list
 
     def compute_brake(self, distance):
         brake = math.exp(-distance/10)
         return brake**0.4
 
-    def update_info(self):
-        self.location, self.transform, self.ego_speed, self.acceleration = self.perception.get_vehicle_info()
+    def ego_state_update(self):
+        self.location, self.transform, self.speed, _ = self.perception.get_vehicle_info()
+
+    def get_relative_waypoint_angle(self):
+        if self.waypoint_buffer:
+            waypoint = self.waypoint_buffer[0]
+            waypoint_yaw_rad = math.radians(waypoint.transform.rotation.yaw)
+            ego_yaw_rad = math.radians(self.transform.rotation.yaw)
+            relative_angle_rad = ego_yaw_rad - waypoint_yaw_rad
+            relative_angle_rad = (relative_angle_rad +
+                                  math.pi) % (2 * math.pi) - math.pi
+            relative_angle_deg = math.degrees(relative_angle_rad)
+            return relative_angle_deg
+        return 0
+
+    def update_current_offset(self):
+        if self.waypoint_buffer:
+            waypoint = self.waypoint_buffer[0]
+            ego_location = self.location.x, self.location.y
+            waypoint_location = waypoint.transform.location.x, waypoint.transform.location.y
+            waypoint_yaw_rad = math.radians(waypoint.transform.rotation.yaw)
+            cos_yaw, sin_yaw = math.cos(
+                waypoint_yaw_rad), math.sin(waypoint_yaw_rad)
+            normal_vector = -sin_yaw, cos_yaw
+            vector_waypoint_to_ego = [
+                coord1 - coord2 for coord1, coord2 in zip(ego_location, waypoint_location)]
+
+            self.current_offset = sum(
+                coord1 * coord2 for coord1, coord2 in zip(vector_waypoint_to_ego, normal_vector))
+            if abs(self.current_offset) > 0.1:
+                # print(self.current_offset)
+                pass
+
+    def check_traffic_light(self):
+        if self.perception.is_traffic_light_red():
+            self.target_speed = 0
+            self.use_car_following = True
+        if self.vehicle.is_at_traffic_light():
+            self.target_speed = 10
+            self.use_car_following = True

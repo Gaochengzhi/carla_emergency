@@ -5,44 +5,20 @@
 
 """ This module contains PID controllers to perform lateral and longitudinal control. """
 
-import cvxopt
 from collections import deque
 import math
 import numpy as np
 import carla
 from util import get_speed, log_time_cost
+import carla
 
 
 class VehiclePIDController():
-    """
-    VehiclePIDController is the combination of two PID controllers
-    (lateral and longitudinal) to perform the
-    low level control a vehicle from client side
-    """
 
     def __init__(self, vehicle, args_lateral={'K_P': 1.45,
                                               'K_I': 0.05, 'K_D': 0.2, 'dt': 0.1}, args_longitudinal={
         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.55, max_brake=0.9,
             max_steering=0.5):
-        """
-        Constructor method.
-
-        :param vehicle: actor to apply to local planner logic onto
-        :param args_lateral: dictionary of arguments to set the lateral PID controller
-        using the following semantics:
-            K_P -- Proportional term
-            K_D -- Differential term
-            K_I -- Integral term
-        :param args_longitudinal: dictionary of arguments to set the longitudinal
-        PID controller using the following semantics:
-            K_P -- Proportional term
-            K_D -- Differential term
-            K_I -- Integral term
-        :param offset: If different than zero, the vehicle will drive displaced from the center line.
-        Positive values imply a right offset while negative ones mean a left one. Numbers high enough
-        to cause the vehicle to drive through other lanes might break the controller.
-        """
-
         self.max_brake = max_brake
         self.max_throt = max_throttle
         self.max_steer = max_steering
@@ -52,9 +28,8 @@ class VehiclePIDController():
         self.past_steering = self._vehicle.get_control().steer
         self._lon_controller = PIDLongitudinalController(
             self._vehicle, **args_longitudinal)
-        # self._lat_controller = PIDLateralController(
-        #     self._vehicle, offset, **args_lateral)
-        self._lat_controller = MPCLateralController(self._vehicle)
+        self._lat_controller = PIDLateralController(
+            self._vehicle, offset, **args_lateral)
 
     def run_step(self, target_speed, transform):
         acceleration = self._lon_controller.run_step(target_speed*3.6)
@@ -100,20 +75,8 @@ class VehiclePIDController():
 
 
 class PIDLongitudinalController():
-    """
-    PIDLongitudinalController implements longitudinal control using a PID.
-    """
 
     def __init__(self, vehicle, K_P=1.0, K_I=0.0, K_D=0.0, dt=0.03):
-        """
-        Constructor method.
-
-            :param vehicle: actor to apply to local planner logic onto
-            :param K_P: Proportional term
-            :param K_D: Differential term
-            :param K_I: Integral term
-            :param dt: time differential in seconds
-        """
         self._vehicle = vehicle
         self._k_p = K_P
         self._k_i = K_I
@@ -122,13 +85,6 @@ class PIDLongitudinalController():
         self._error_buffer = deque(maxlen=10)
 
     def run_step(self, target_speed, debug=False):
-        """
-        Execute one step of longitudinal control to reach a given target speed.
-
-            :param target_speed: target speed in Km/h
-            :param debug: boolean for debugging
-            :return: throttle control
-        """
         current_speed = get_speed(self._vehicle)
 
         if debug:
@@ -137,14 +93,6 @@ class PIDLongitudinalController():
         return self._pid_control(target_speed, current_speed)
 
     def _pid_control(self, target_speed, current_speed):
-        """
-        Estimate the throttle/brake of the vehicle based on the PID equations
-
-            :param target_speed:  target speed in Km/h
-            :param current_speed: current speed of the vehicle in Km/h
-            :return: throttle/brake control
-        """
-
         error = target_speed - current_speed
         self._error_buffer.append(error)
 
@@ -178,17 +126,6 @@ class PIDLateralController():
     """
 
     def __init__(self, vehicle, offset=0, K_P=1.0, K_I=0.0, K_D=0.0, dt=0.03):
-        """
-        Constructor method.
-
-            :param vehicle: actor to apply to local planner logic onto
-            :param offset: distance to the center line. If might cause issues if the value
-                is large enough to make the vehicle invade other lanes.
-            :param K_P: Proportional term
-            :param K_D: Differential term
-            :param K_I: Integral term
-            :param dt: time differential in seconds
-        """
         self._vehicle = vehicle
         self._k_p = K_P
         self._k_i = K_I
@@ -264,100 +201,3 @@ class PIDLateralController():
         self._k_i = K_I
         self._k_d = K_D
         self._dt = dt
-
-
-class MPCLateralController:
-    def __init__(self, vehicle, N=10, dt=0.1, Q=np.diag([1, 1, 0.1, 0.1]), R=np.diag([1])):
-        self._vehicle = vehicle
-        self._N = N  # Number of time steps to predict
-        self._dt = dt  # Time step size
-        self._Q = Q  # State cost matrix
-        self._R = R  # Input cost matrix
-        self._last_steering = 0  # Store the last steering command
-
-    def run_step(self, target_path):
-        # Get the current vehicle state
-        current_state = self._get_current_state()
-
-        # Solve the MPC optimization problem
-        steering = self._solve_mpc(current_state, target_path)
-
-        # Apply steering command to the vehicle
-        control = carla.VehicleControl()
-        control.steer = float(steering)
-        control.hand_brake = False
-        control.manual_gear_shift = False
-        self._last_steering = steering
-
-        return control
-
-    def _get_current_state(self):
-        # Get the current vehicle state (position, orientation, speed)
-        transform = self._vehicle.get_transform()
-        velocity = self._vehicle.get_velocity()
-        speed = np.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
-        return np.array([transform.location.x, transform.location.y, transform.rotation.yaw, speed])
-
-    def _solve_mpc(self, current_state, target_path):
-        n_states = 4  # Number of states (x, y, yaw, speed)
-        n_inputs = 1  # Number of inputs (steering)
-        A, B = self._get_model_matrices()
-
-        # Objective function
-        P = cvxopt.matrix(np.block([
-            [np.kron(np.eye(self._N), self._Q), np.zeros(
-                (n_states*self._N, n_inputs*self._N))],
-            [np.zeros((n_inputs*self._N, n_states*self._N)),
-             np.kron(np.eye(self._N), self._R)]
-        ]))
-        q = cvxopt.matrix(np.zeros((n_states*self._N + n_inputs*self._N, 1)))
-
-        # Equality constraints
-        A_eq = self._build_aeq(A, B, n_states, n_inputs)
-        b_eq = np.zeros((n_states * self._N, 1))
-        b_eq[:n_states] = current_state - \
-            np.hstack([target_path[0], [0, 0]]) if len(
-                target_path) > 0 else current_state
-
-        # Inequality constraints for path following
-        G, h = self._build_inequalities(n_states, n_inputs, target_path)
-
-        # Solve QP
-        sol = cvxopt.solvers.qp(P, q, G, h, A_eq, cvxopt.matrix(b_eq))
-        x = np.array(sol['x'])
-
-        # Extract the first input (steering command)
-        steering = x[n_states*self._N: n_states*self._N + n_inputs][0]
-
-        return steering
-
-    def _get_model_matrices(self):
-        A = np.array([[1, 0, self._dt * np.cos(self._last_steering), 0],
-                      [0, 1, self._dt * np.sin(self._last_steering), 0],
-                      [0, 0, 1, 0],
-                      [0, 0, 0, 1]])
-        B = np.array([[0],
-                      [0],
-                      [self._dt],
-                      [0]])
-        return A, B
-
-    def _build_aeq(self, A, B, n_states, n_inputs):
-        A_eq = np.zeros((n_states*self._N, n_states + n_inputs*self._N))
-        for i in range(self._N):
-            A_eq[n_states*i:n_states*(i+1), n_states*i:n_states*(i+1)] = A
-            if i < self._N - 1:
-                A_eq[n_states*i:n_states *
-                     (i+1), n_states*(i+1):n_states*(i+2)] = -np.eye(n_states)
-            if i < self._N:
-                A_eq[n_states*i:n_states*(i+1), n_states*self._N +
-                     n_inputs*i:n_states*self._N + n_inputs*(i+1)] = B
-        return cvxopt.matrix(A_eq)
-
-    def _build_inequalities(self, n_states, n_inputs, target_path):
-        # This can be adapted based on the specific constraints you want to enforce
-        # Placeholder, replace with actual inequality constraints
-        G = cvxopt.matrix(0, (0, n_states*self._N + n_inputs*self._N), 'd')
-        # Placeholder, replace with actual inequality constraints
-        h = cvxopt.matrix(0, (0, 1), 'd')
-        return G, h

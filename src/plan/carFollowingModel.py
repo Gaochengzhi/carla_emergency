@@ -2,7 +2,7 @@ import numpy as np
 
 
 class IDM():
-    def __init__(self, speed_limit=30, max_acc=5, normal_decel=5, delta=4, safe_distance=6.5, human_reaction_time=0.2, max_brake_decel=6.0):
+    def __init__(self, speed_limit=30, max_acc=5, normal_decel=5, delta=4, safe_distance=6.5, human_reaction_time=0.1, max_brake_decel=6.0):
         self.v0 = speed_limit
         self.delta = delta
         self.a = max_acc
@@ -13,7 +13,7 @@ class IDM():
         self.sqrtab = np.sqrt(max_acc*normal_decel)
 
     def calc_acc(self, front_v, distance_s, ego_v):
-        self.s0 = max(ego_v, 5)
+        self.s0 = max(ego_v, 3)
         if distance_s < 2:
             return -self.max_brake_decel
         delta_v = ego_v-front_v

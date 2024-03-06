@@ -83,7 +83,7 @@ def destroy_all_actors(world):
     # world.tick()
 
 
-def spawn_vehicle(world, vehicle_type, spawn_point, hero=False):
+def spawn_vehicle(world, vehicle_type, spawn_point, hero=False, name="hero"):
     lz = spawn_point.location.z + 0.5
     spawn_point = carla.Transform(carla.Location(
         spawn_point.location.x, spawn_point.location.y, lz), spawn_point.rotation)
@@ -91,7 +91,7 @@ def spawn_vehicle(world, vehicle_type, spawn_point, hero=False):
         vehicle_type
     )[0]
     if hero:
-        vehicle_bp.set_attribute('role_name', 'hero')
+        vehicle_bp.set_attribute('role_name', name)
     vehicle = world.try_spawn_actor(
         vehicle_bp, spawn_point)
     return vehicle

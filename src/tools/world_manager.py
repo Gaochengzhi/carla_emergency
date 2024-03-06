@@ -56,7 +56,7 @@ class WorldManager:
         map_name = self.config["map_name"]
         if self.config["is_custum_map"]:
             data = None
-            with open("/home/ujs/mycode/Carla_Truck_Platoon/assets/highways.osm", encoding='utf-8') as od_file:
+            with open("/home/ujs/mycode/highways.osm", encoding='utf-8') as od_file:
                 try:
                     data = od_file.read()
                 except OSError:

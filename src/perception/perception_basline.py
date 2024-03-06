@@ -9,9 +9,6 @@ class FakePerception:
         self.vehicle = vehicle
         self.config = config
 
-    def get_perception(self, image):
-        return
-
     def get_road_edge(self, waypoint):
         lane_width = waypoint.lane_width
         current_lane_type = waypoint.lane_type
@@ -36,11 +33,10 @@ class FakePerception:
         distance_to_right_side = max(0, lane_width / 2 + right_offset)
 
         # Return distances with a slight adjustment (if needed)
-        return distance_to_left_side - 1.25, distance_to_right_side - 1.25
+        return distance_to_left_side - 1, distance_to_right_side - 1
 
     def is_traffic_light_red(self):
         if self.vehicle.is_at_traffic_light():
-            logging.debug("at traffic light")
             traffic_light = self.vehicle.get_traffic_light()
             if traffic_light.get_state() == carla.TrafficLightState.Red:
                 return True

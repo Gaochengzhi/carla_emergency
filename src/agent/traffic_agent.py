@@ -10,6 +10,7 @@ from util import connect_to_server, time_const, log_time_cost, thread_process_ve
 from agent.baseAgent import BaseAgent
 import time
 from tools.config_manager import config as cfg
+from pyinstrument import Profiler
 
 
 class TrafficFlowManager(BaseAgent):
@@ -20,18 +21,23 @@ class TrafficFlowManager(BaseAgent):
         self.fps = 10
         BaseAgent.__init__(self, "TrafficFlow",
                            self.config["traffic_agent_port"])
+        self.profiler = Profiler(interval=0.001)
 
     def run(self):
         # @log_time_cost(name="traffic")
+
         @time_const(fps=self.config["fps"])
         def run_step(world):
+            self.profiler.start()
             try:
                 preception_res = thread_process_vehicles(
                     world, predict, self.fps)
+                self.communi_agent.send_obj(preception_res)
             except Exception as e:
                 logging.error(e)
-            draw_future_locations(world, preception_res, life_time=1)
-            self.communi_agent.send_obj(preception_res)
+            # draw_future_locations(world, preception_res, life_time=0.2)
+            self.profiler.stop()
+            # self.profiler.print(show_all=True)
         client, world = connect_to_server(
             self.config["carla_timeout"], self.config["carla_port"])
         self.map = world.get_map()

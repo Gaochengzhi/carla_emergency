@@ -4,8 +4,10 @@ from util import connect_to_server, spawn_vehicle, time_const, is_within_distanc
 from view.debug_manager import draw_waypoints_arraw, draw_transforms, set_bird_view
 
 from perception.sensor_manager import SensorManager
-from navigation.router_baseline import GlobalRoutePlanner
-from navigation.controller_baseline import VehiclePIDController
+# from navigation.router_baseline import GlobalRoutePlanner
+from cythoncode.router_baseline import GlobalRoutePlanner
+# from navigation.controller_baseline import VehiclePIDController
+from cythoncode.controller_baseline import VehiclePIDController
 from plan.planer_baseline import FrenetPlanner
 import carla
 import logging
@@ -32,27 +34,29 @@ class BaselineVehicleAgent(BaseAgent):
         map = world.get_map()
         self.start_agent()
         self.set_communi_agent()
-
         start_point, end_point = self.get_navi_pos(world)
-        set_bird_view(world, start_point.location, 100)
         self.vehicle = self.create_vehicle(world, start_point,
                                            self.config["type"])
 
-        self.sensor_manager = SensorManager(world, self.vehicle, self.config)
+        self.vehicle_info = self.init_vehicle_info()
+        self.sensor_manager = SensorManager(
+            world, self.vehicle, self.vehicle_info, self.config)
         self.controller = VehiclePIDController(self.vehicle)
         self.global_route_planner = GlobalRoutePlanner(
             world.get_map(), sampling_resolution=5)
         self.global_router_waypoints = [x[0] for x in self.global_route_planner.trace_route(
             start_point.location, end_point.location)]
-        # debug
-        # draw_waypoints_arraw(
-        #     world, self.global_router_waypoints, 1, life_time=100)
         self.local_planner = FrenetPlanner(
             world, map, self.global_router_waypoints, self.vehicle, self.config, self.controller, self.sensor_manager)
         control = carla.VehicleControl()
+        # debug
+        # set_bird_view(world, start_point.location, 50)
+        # draw_waypoints_arraw(
+        #     world, self.global_router_waypoints, 1, life_time=100)
         try:
             while True:
-                # set_bird_view(world, self.vehicle.get_location(), 100)
+                # if self.vehicle.attributes["role_name"] == "agent_0" and True:
+                set_bird_view(world, self.vehicle.get_location(), 80)
                 run_step(world, control)
         except Exception as e:
             logging.error(f"ego vehicle agent error:{e}")
@@ -79,23 +83,27 @@ class BaselineVehicleAgent(BaseAgent):
     def create_vehicle(self, world, start_point, ego_vehicle_type):
         try:
             spawn_actor = spawn_vehicle(
-                world, ego_vehicle_type, start_point, hero=True)
+                world, ego_vehicle_type, start_point, hero=True, name=self.config["name"])
             while spawn_actor is None:
                 logging.info(
                     f"spawn_actor{ego_vehicle_type} failed, trying another start point...")
                 start_point = random.choice(self.waypoints)
                 spawn_actor = spawn_vehicle(
-                    world, ego_vehicle_type, start_point, hero=True)
+                    world, ego_vehicle_type, start_point, hero=True, name=self.config["name"])
             return spawn_actor
         except Exception as e:
             logging.error(f"create ego vehicle error:{e}")
             raise
+
+    def init_vehicle_info(self):
+        v_length = self.vehicle.bounding_box.extent.x
+        v_widht = self.vehicle.bounding_box.extent.y
+        v_high = self.vehicle.bounding_box.extent.z
+        mass = self.vehicle.get_physics_control().mass
+        return {"width": v_widht, "length": v_length, "height": v_high, "mass": mass}
 
     def get_trajection(self):
         return self.trajection
 
     def get_vehicle(self):
         return self.vehicle
-
-    def get_count(self):
-        return self.count

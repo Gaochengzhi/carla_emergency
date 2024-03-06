@@ -1,5 +1,6 @@
 from agent.baseline_vehicle_agent import BaselineVehicleAgent
 import random
+import carla
 
 
 def load_agents(config):
@@ -11,8 +12,8 @@ def load_agents(config):
 
 def load_batch_agents(config):
 
-    config["spwan_list"] = random.sample(range(0, 101), 30)
-    config["target_list"] = random.sample(range(103, 220), 30)
+    config["spwan_list"] = random.sample(range(0, 50), 25)
+    config["target_list"] = random.sample(range(50, 100), 25)
     agent_info = {}
     for i, spawn_target in enumerate(zip(config["spwan_list"], config["target_list"])):
         agent_info["name"] = f"agent_{i}"
@@ -30,16 +31,18 @@ def load_batch_agents(config):
 def load_conventional_agents(world, tm, config):
     spawn_point = world.get_map().get_spawn_points()
     agent_info = {}
-    # config["spwan_list"] = random.sample(range(0, 200), 100)
-    # config["spwan_list"] = [65, 64, 63, 66]
-    config["spwan_list"] = range(194, 199)
-    # config["target_list"] = random.sample(range(100, 300), 100)
-    config["target_list"] = [1, 2, 6, 5, 6, 7, 8]
+    config["spwan_list"] = random.sample(range(0, 100), 99)
+    # config["spwan_list"] = [65, 64, 63] + random.sample(range(64, 100), 27)
+    # config["spwan_list"] = [66]
+    config["target_list"] = random.sample(range(100, 300), 70)
+    # config["target_list"] = [1, 2, 6, 5, 6, 7, 8]
     for i, spwan_target in enumerate(zip(config["spwan_list"], config["target_list"])):
         vehicle_bp = world.get_blueprint_library().filter(
             "vehicle.tesla.model3*")[0]
         vehicle_bp.set_attribute('role_name', f"agent_{i}")
         vehicle = world.spawn_actor(vehicle_bp, spawn_point[spwan_target[0]])
-        tm.ignore_lights_percentage(vehicle, 100)
+        # tm.ignore_lights_percentage(vehicle, 100)
+        # vehicle.set_simulate_physics(False)
+        # vehicle.set_target_velocity(carla.Vector3D(0, 0, 105))
         vehicle.set_autopilot(True, tm.get_port())
-        tm.vehicle_percentage_speed_difference(vehicle, 2)
+        tm.vehicle_percentage_speed_difference(vehicle, 45)

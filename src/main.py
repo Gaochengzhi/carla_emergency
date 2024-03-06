@@ -25,7 +25,7 @@ def main():
     load_conventional_agents(world, TM, config)
 
     TrafficFlowManager().start()
-    DataRecorder(config).start()
+    # DataRecorder(config).start()
 
     # @log_time_cost
     @time_const(fps=config["fps"])

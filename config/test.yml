@@ -1,10 +1,10 @@
 # WorldParameters:
 carla_timeout: 100.0
-map_name: Town06
+map_name: Town01
 actor_active_distance: 100
 hybrid_physics_radius: 30
 tile_stream_distance: 100
-fps: 34
+fps: 24
 fixed_delta_seconds: 0.05
 # TrafficParameters:
 num_vehicles: 0
@@ -23,17 +23,17 @@ agents:
   - name: "agent1"
     port: 9561
     type: "vehicle.ford.crown"
-    # start_point: 136
-    start_point: 417
+    # start_point: 135
+    start_point: 0
     # end_point: 86
-    end_point: 29
+    end_point: 100
     ignore_traffic_light: False
     main_port: 6000
     traffic_agent_port: 9981
   # - name: "agent2"
   #   port: 9562
   #   type: "vehicle.ford.crown"
-  #   start_point: 135
+  #   start_point: 136
   #   # start_point: 103
   #   end_point: 85
   #   ignore_traffic_light: False
