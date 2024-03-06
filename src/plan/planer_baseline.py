@@ -57,6 +57,7 @@ class FrenetPlanner():
     def run_step(self, obs, control):
         try:
             # self.profiler.start()
+
             self.ego_state_update()
             self.obstacle_update(obs)
             self.check_waypoints()
@@ -68,7 +69,7 @@ class FrenetPlanner():
                 else:
                     self.use_car_following = False
                     self.target_speed = self.max_speed
-            if self.step % 26 == 0:
+            if self.step % 32 == 0:
                 if self.target_offset > 0.1:
                     self.adjust_offset(-1)
                 elif self.target_offset < -0.1:
@@ -172,7 +173,10 @@ class FrenetPlanner():
                     (offset, highest_velocity, nearest_index))
             else:
                 # Found a collision-free offset, apply it and return
-                self.target_offset = offset
+                if abs(offset-self.target_offset) > 4:
+                    self.target_offset - 3 if offset > 0 else self.target_offset + 3
+                else:
+                    self.target_offset = offset
                 return True
         # If here, no collision-free offset was found; decide based on obstacle velocities and distances
         if collision_info:
@@ -230,10 +234,12 @@ class FrenetPlanner():
         start_location = [self.location.x, self.location.y]
         end_location = self.trajectories[0]
         interpolated_points = interpolate_points(
-            start_location, end_location, 1)
+            start_location, end_location, 2)
+        interpolated_points.pop(0)
+        interpolated_points.pop(0)
         self.trajectories = interpolated_points + self.trajectories
-        # draw_list(self.world, self.trajectories, size=0.1,
-        #           color=carla.Color(110, 25, 144), life_time=0.15)
+        draw_list(self.world, self.trajectories, size=0.1,
+                  color=carla.Color(110, 25, 144), life_time=0.15)
         collision_info = []
         for ob in self.obs_list:
             for index, point in enumerate(self.trajectories):

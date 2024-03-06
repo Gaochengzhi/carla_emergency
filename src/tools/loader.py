@@ -30,8 +30,7 @@ def load_batch_agents(config):
 
 def load_conventional_agents(world, tm, config):
     spawn_point = world.get_map().get_spawn_points()
-    agent_info = {}
-    config["spwan_list"] = random.sample(range(0, 100), 99)
+    config["spwan_list"] = random.sample(range(0, 90), 80)
     # config["spwan_list"] = [65, 64, 63] + random.sample(range(64, 100), 27)
     # config["spwan_list"] = [66]
     config["target_list"] = random.sample(range(100, 300), 70)

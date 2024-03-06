@@ -1,6 +1,6 @@
 # WorldParameters:
 carla_timeout: 100.0
-map_name: Town01
+map_name: Town05
 actor_active_distance: 100
 hybrid_physics_radius: 30
 tile_stream_distance: 100
