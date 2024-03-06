@@ -32,5 +32,5 @@ def plot_location_relationships(csv_file_path):
     plt.show()
 
 # Call the function with your CSV file
-plot_location_relationships('data.csv')
+plot_location_relationships('Town06.csv')
 

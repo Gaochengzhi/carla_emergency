@@ -31,6 +31,14 @@ def list_to_points(line):
     return sp
 
 
+def interpolate_points(start, end, spacing=3):
+    distance = compute_distance2D(start, end)
+    num_points = max(int(distance / spacing), 2)
+    x_spacing = (end[0] - start[0]) / (num_points - 1)
+    y_spacing = (end[1] - start[1]) / (num_points - 1)
+    return [(start[0] + i * x_spacing, start[1] + i * y_spacing) for i in range(num_points)]
+
+
 def compute_3D21d(vector):
     return math.sqrt(vector.x**2 + vector.y**2 + vector.z**2)
 
@@ -72,10 +80,10 @@ def destroy_all_actors(world):
         if actor.type_id.startswith("vehicle") or actor.type_id.startswith("sensor"):
             actor.destroy()
     logging.debug("All actors destroyed")
-    world.tick()
+    # world.tick()
 
 
-def spawn_vehicle(world, vehicle_type, spawn_point, hero=False):
+def spawn_vehicle(world, vehicle_type, spawn_point, hero=False, name="hero"):
     lz = spawn_point.location.z + 0.5
     spawn_point = carla.Transform(carla.Location(
         spawn_point.location.x, spawn_point.location.y, lz), spawn_point.rotation)
@@ -83,7 +91,7 @@ def spawn_vehicle(world, vehicle_type, spawn_point, hero=False):
         vehicle_type
     )[0]
     if hero:
-        vehicle_bp.set_attribute('role_name', 'hero')
+        vehicle_bp.set_attribute('role_name', name)
     vehicle = world.try_spawn_actor(
         vehicle_bp, spawn_point)
     return vehicle
@@ -130,7 +138,7 @@ def log_time_cost(func=None, *, name=""):
 
         # Log the time cost with debug level
         logging.debug(
-            f"Function {name} {func.__name__} executed in {elapsed_time:.4f} seconds.")
+            f"Function {name} {func.__name__} executed in {elapsed_time:.5f} seconds.")
 
         return result
     return wrapper
@@ -180,8 +188,8 @@ def get_vehicle_info(vehicle):
 
 def thread_process_vehicles(world, func, *args, **kwargs):
     vehicles = []
-    vehicle_actors = [actor for actor in world.get_actors(
-    ) if actor.type_id.startswith("vehicle")]
+    vehicle_actors = world.get_actors(
+    ).filter("vehicle.*")
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(func, world, vehicle, *args, **kwargs)
                    for vehicle in vehicle_actors]
@@ -253,8 +261,8 @@ class Velocity:
 
 
 def compute_distance2D(location1, location2):
-    dx = location1[0] - location2.x
-    dy = location1[1] - location2.y
+    dx = location1[0] - location2[0]
+    dy = location1[1] - location2[1]
     return math.sqrt(dx ** 2 + dy ** 2)
 
 
@@ -266,7 +274,7 @@ def get_forward_vector(yaw):
     return np.array([math.cos(rad), math.sin(rad)])
 
 
-def is_within_distance_obs(ego_transform, target_info, max_distance, ego_speed=0, angle_interval=None):
+def is_within_distance_obs(ego_location, target_location, max_distance=60, ego_speed=0, target_velocity=0, ego_yaw=0, angle_interval=None):
     """
     Filters out the target object (B) within the angle_interval but with speed greater than ego (A).
 
@@ -277,14 +285,13 @@ def is_within_distance_obs(ego_transform, target_info, max_distance, ego_speed=0
     :return: boolean
     """
     # Calculate the vector from A to B
-    target_vector = np.array([
-        target_info['location'].x - ego_transform.location.x,
-        target_info['location'].y - ego_transform.location.y
-    ])
-    norm_target = np.linalg.norm(target_vector)
+    target_vector = np.array([target_location[0]-ego_location[0],
+                              target_location[1]-ego_location[1]])
+
+    norm_target = math.sqrt(target_vector[0] ** 2 + target_vector[1] ** 2)
 
     # If the vector is too short, we can simply stop here
-    if norm_target < 0.001:
+    if norm_target < 0.01:
         return False  # Assuming we don't want to consider zero distance valid
 
     # Further than the max distance
@@ -292,19 +299,15 @@ def is_within_distance_obs(ego_transform, target_info, max_distance, ego_speed=0
         return False
 
     # Calculate the angle between A's forward vector and the vector to B
-    forward_vector = get_forward_vector(ego_transform.rotation.yaw)
+    forward_vector = get_forward_vector(ego_yaw)
     angle = math.degrees(math.acos(
         np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
 
     # Check if angle is within the specified interval
-    if angle_interval and not (angle_interval[0] <= angle <= angle_interval[1]):
-        return False
+    if (angle_interval is None or angle_interval[0] <= angle <= angle_interval[1]) and target_velocity <= ego_speed:
+        return True
 
-    # Filter out if B's speed is greater than A's
-    if target_info['velocity'].x > ego_speed:
-        return False
-
-    return True
+    return False
 
 
 def is_within_distance(target_transform, reference_transform, max_distance, angle_interval=None):
@@ -392,7 +395,7 @@ def vector(location_1, location_2):
     x = location_2.x - location_1.x
     y = location_2.y - location_1.y
     z = location_2.z - location_1.z
-    norm = np.linalg.norm([x, y, z]) + np.finfo(float).eps
+    norm = math.sqrt(x * x + y * y + z * z)
 
     return [x / norm, y / norm, z / norm]
 
@@ -406,8 +409,7 @@ def compute_distance(location_1, location_2):
     x = location_2.x - location_1.x
     y = location_2.y - location_1.y
     z = location_2.z - location_1.z
-    norm = np.linalg.norm([x, y, z]) + np.finfo(float).eps
-    return norm
+    return math.sqrt(x * x + y * y + z * z)
 
 
 def positive(num):

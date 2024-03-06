@@ -10,7 +10,7 @@ from collections import deque
 import random
 
 import carla
-from navigation.controller import VehiclePIDController
+from navigation.controller_baseline import VehiclePIDController
 from util import get_speed
 from view.debug_manager import draw_waypoints_arraw
 

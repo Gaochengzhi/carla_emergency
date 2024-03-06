@@ -3,7 +3,7 @@ import math
 import os
 import logging
 import carla
-from agent.ego_vehicle_agent import EgoVehicleAgent
+from agent.baseline_vehicle_agent import BaselineVehicleAgent
 from view.debug_manager import DebugManager as debug
 from util import spawn_vehicle, connect_to_server, time_const, thread_process_vehicles, get_ego_vehicle, get_speed, log_time_cost, get_vehicle_info
 from agent.baseAgent import BaseAgent
@@ -22,6 +22,16 @@ class DataRecorder(BaseAgent):
                            config["data_port"])
 
     def run(self):
+        # @log_time_cost
+        @time_const(fps=self.config["fps"])
+        def run_step(world, writer):
+            lock = Lock()
+            current_time = time.time()
+            try:
+                v_list = thread_process_vehicles(
+                    world, self.write_vehicle_info, writer, lock, time_now=current_time)
+            except Exception as e:
+                logging.error(e)
         if not self.config["record"]:
             return
         client, world = connect_to_server(
@@ -51,19 +61,11 @@ class DataRecorder(BaseAgent):
             'control_brake',
             'control_throttle',
             'control_steer',
-            'torque_curveX',
-            'torque_curveY',
+            # 'torque_curveX',
+            # 'torque_curveY',
         ])
         while True:
-            self.run_step(world, writer)
-
-    # @log_time_cost
-    @time_const(fps=20)
-    def run_step(self, world, writer):
-        lock = Lock()
-        current_time = time.time()
-        v_list = thread_process_vehicles(
-            world, self.write_vehicle_info, writer,lock ,time_now=current_time)
+            run_step(world, writer)
 
     def write_vehicle_info(self, world, vehicle, writer, lock, time_now):
         # Acquire the lock before writing to the file
@@ -77,12 +79,11 @@ class DataRecorder(BaseAgent):
             control = vehicle.get_control()
 
             # Physics control info
-            physics_control = vehicle.get_physics_control()
-            wheels = physics_control.wheels
+            # physics_control = vehicle.get_physics_control()
 
-            # Extracting data from physics_control
-            torque_curve = [(point.x, point.y) for point in physics_control.torque_curve]
-            center_of_mass = physics_control.center_of_mass
+            # # Extracting data from physics_control
+            # torque_curve = [(point.x, point.y)
+            #                 for point in physics_control.torque_curve]
 
             # Writing data to CSV within the locked context to ensure thread safety
             writer.writerow([
@@ -94,7 +95,6 @@ class DataRecorder(BaseAgent):
                 angular_velocity.x, angular_velocity.y, angular_velocity.z,
                 transform.rotation.roll, transform.rotation.pitch, transform.rotation.yaw,
                 control.brake, control.throttle, control.steer,
-                torque_curve[0][0] if torque_curve else 0, torque_curve[0][1] if torque_curve else 0,
             ])
 
     def init_data_file(self, folder_path):

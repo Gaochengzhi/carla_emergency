@@ -3,7 +3,7 @@ rm -rf log/*
 
 
 
-CONFIG_FILE="./config/base.yml"
+CONFIG_FILE="../config/base.yml"
 
 # Parse the YAML file to get the list of port numbers
 ports=$(cat "$CONFIG_FILE" | grep -Eo '^[a-zA-Z]+_port:[ ]+[0-9]+' | awk -F'[: ]+' '{print $NF}')

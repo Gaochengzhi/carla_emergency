@@ -9,111 +9,30 @@ from collections import deque
 import math
 import numpy as np
 import carla
-from util import get_speed
-
-import collections
+from util import get_speed, log_time_cost
 import carla
 
-class VehiclePIDControllers():
-    def __init__(self, vehicle, args_lateral, args_longitudinal, offset=0, max_throttle=0.35, max_brake=0.3, max_steering=0.5, history_size=5):
-        self.max_brake = max_brake
-        self.max_throt = max_throttle
-        self.max_steer = max_steering
 
-        self._vehicle = vehicle
-        self._world = self._vehicle.get_world()
-        self.control_history = collections.deque(maxlen=history_size)
-        self._lon_controller = PIDLongitudinalController(self._vehicle, **args_longitudinal)
-        self._lat_controller = PIDLateralController(self._vehicle, offset, **args_lateral)
-
-    def run_step(self, target_speed, waypoint):
-        # Compute control for the next waypoint
-        control = self._compute_control(target_speed, waypoint)
-
-        # Smooth the control
-        if self.control_history:
-            control = self._smooth_control(control)
-
-        self.control_history.append(control)
-        return control
-
-    def _compute_control(self, target_speed, waypoint):
-        acceleration = self._lon_controller.run_step(target_speed)
-        current_steering = self._lat_controller.run_step(waypoint)
-        control = carla.VehicleControl()
-
-        # Throttle and Brake
-        if acceleration >= 0.0:
-            control.throttle = min(acceleration, self.max_throt)
-            control.brake = 0.0
-        else:
-            control.throttle = 0.0
-            control.brake = min(abs(acceleration), self.max_brake)
-
-        # Steering
-        control.steer = min(max(current_steering, -self.max_steer), self.max_steer)
-
-        control.hand_brake = False
-        control.manual_gear_shift = False
-
-        return control
-
-    def _smooth_control(self, current_control):
-        # Averages the current control with the past control values for smoothing
-        avg_control = carla.VehicleControl()
-        for past_control in self.control_history:
-            avg_control.throttle += past_control.throttle
-            avg_control.brake += past_control.brake
-            avg_control.steer += past_control.steer
-
-        avg_control.throttle = (avg_control.throttle + current_control.throttle) / (len(self.control_history) + 1)
-        avg_control.brake = (avg_control.brake + current_control.brake) / (len(self.control_history) + 1)
-        avg_control.steer = (avg_control.steer + current_control.steer) / (len(self.control_history) + 1)
-
-        return avg_control
 class VehiclePIDController():
-    """
-    VehiclePIDController is the combination of two PID controllers
-    (lateral and longitudinal) to perform the
-    low level control a vehicle from client side
-    """
 
-
-    def __init__(self, vehicle, args_lateral={'K_P': 1.95,
-                                   'K_I': 0.05, 'K_D': 0.2, 'dt': 0.03}, args_longitudinal={
-            'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.35, max_brake=0.3,
-                 max_steering=0.5):
-        """
-        Constructor method.
-
-        :param vehicle: actor to apply to local planner logic onto
-        :param args_lateral: dictionary of arguments to set the lateral PID controller
-        using the following semantics:
-            K_P -- Proportional term
-            K_D -- Differential term
-            K_I -- Integral term
-        :param args_longitudinal: dictionary of arguments to set the longitudinal
-        PID controller using the following semantics:
-            K_P -- Proportional term
-            K_D -- Differential term
-            K_I -- Integral term
-        :param offset: If different than zero, the vehicle will drive displaced from the center line.
-        Positive values imply a right offset while negative ones mean a left one. Numbers high enough
-        to cause the vehicle to drive through other lanes might break the controller.
-        """
-
+    def __init__(self, vehicle, args_lateral={'K_P': 1.45,
+                                              'K_I': 0.05, 'K_D': 0.2, 'dt': 0.1}, args_longitudinal={
+        'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.55, max_brake=0.9,
+            max_steering=0.5):
         self.max_brake = max_brake
         self.max_throt = max_throttle
         self.max_steer = max_steering
 
         self._vehicle = vehicle
-        self._world = self._vehicle.get_world()
+        # self._world = self._vehicle.get_world()
         self.past_steering = self._vehicle.get_control().steer
-        self._lon_controller = PIDLongitudinalController(self._vehicle, **args_longitudinal)
-        self._lat_controller = PIDLateralController(self._vehicle, offset, **args_lateral)
+        self._lon_controller = PIDLongitudinalController(
+            self._vehicle, **args_longitudinal)
+        self._lat_controller = PIDLateralController(
+            self._vehicle, offset, **args_lateral)
 
     def run_step(self, target_speed, transform):
-        acceleration = self._lon_controller.run_step(target_speed)
+        acceleration = self._lon_controller.run_step(target_speed*3.6)
         current_steering = self._lat_controller.run_step(transform)
         control = carla.VehicleControl()
         if acceleration >= 0.0:
@@ -142,7 +61,6 @@ class VehiclePIDController():
 
         return control
 
-
     def change_longitudinal_PID(self, args_longitudinal):
         """Changes the parameters of the PIDLongitudinalController"""
         self._lon_controller.change_parameters(**args_longitudinal)
@@ -157,20 +75,8 @@ class VehiclePIDController():
 
 
 class PIDLongitudinalController():
-    """
-    PIDLongitudinalController implements longitudinal control using a PID.
-    """
 
     def __init__(self, vehicle, K_P=1.0, K_I=0.0, K_D=0.0, dt=0.03):
-        """
-        Constructor method.
-
-            :param vehicle: actor to apply to local planner logic onto
-            :param K_P: Proportional term
-            :param K_D: Differential term
-            :param K_I: Integral term
-            :param dt: time differential in seconds
-        """
         self._vehicle = vehicle
         self._k_p = K_P
         self._k_i = K_I
@@ -179,13 +85,6 @@ class PIDLongitudinalController():
         self._error_buffer = deque(maxlen=10)
 
     def run_step(self, target_speed, debug=False):
-        """
-        Execute one step of longitudinal control to reach a given target speed.
-
-            :param target_speed: target speed in Km/h
-            :param debug: boolean for debugging
-            :return: throttle control
-        """
         current_speed = get_speed(self._vehicle)
 
         if debug:
@@ -194,14 +93,6 @@ class PIDLongitudinalController():
         return self._pid_control(target_speed, current_speed)
 
     def _pid_control(self, target_speed, current_speed):
-        """
-        Estimate the throttle/brake of the vehicle based on the PID equations
-
-            :param target_speed:  target speed in Km/h
-            :param current_speed: current speed of the vehicle in Km/h
-            :return: throttle/brake control
-        """
-
         error = target_speed - current_speed
         self._error_buffer.append(error)
 
@@ -221,11 +112,13 @@ class PIDLongitudinalController():
         self._k_d = K_D
         self._dt = dt
 
+
 class Vector3D:
     def __init__(self, x, y, z):
         self.x = x
         self.y = y
         self.z = z
+
 
 class PIDLateralController():
     """
@@ -233,17 +126,6 @@ class PIDLateralController():
     """
 
     def __init__(self, vehicle, offset=0, K_P=1.0, K_I=0.0, K_D=0.0, dt=0.03):
-        """
-        Constructor method.
-
-            :param vehicle: actor to apply to local planner logic onto
-            :param offset: distance to the center line. If might cause issues if the value
-                is large enough to make the vehicle invade other lanes.
-            :param K_P: Proportional term
-            :param K_D: Differential term
-            :param K_I: Integral term
-            :param dt: time differential in seconds
-        """
         self._vehicle = vehicle
         self._k_p = K_P
         self._k_i = K_I
@@ -258,6 +140,7 @@ class PIDLateralController():
     def set_offset(self, offset):
         """Changes the offset"""
         self._offset = offset
+
     def getRightVector(rotation):
         cy = math.cos(math.radians(rotation.yaw))
         sy = math.sin(math.radians(rotation.yaw))
@@ -265,7 +148,7 @@ class PIDLateralController():
         sr = math.sin(math.radians(rotation.roll))
         cp = math.cos(math.radians(rotation.pitch))
         sp = math.sin(math.radians(rotation.pitch))
-        
+
         x = cy * sp * sr - sy * cr
         y = sy * sp * sr + cy * cr
         z = -cp * sr
@@ -284,7 +167,7 @@ class PIDLateralController():
             w_tran = waypoint
             r_vec = self.getRightVector(waypoint.rotation)
             w_loc = w_tran.location + carla.Location(x=self._offset*r_vec.x,
-                                                         y=self._offset*r_vec.y)
+                                                     y=self._offset*r_vec.y)
         else:
             w_loc = waypoint.location
 
@@ -296,7 +179,8 @@ class PIDLateralController():
         if wv_linalg == 0:
             _dot = 1
         else:
-            _dot = math.acos(np.clip(np.dot(w_vec, v_vec) / (wv_linalg), -1.0, 1.0))
+            _dot = math.acos(
+                np.clip(np.dot(w_vec, v_vec) / (wv_linalg), -1.0, 1.0))
         _cross = np.cross(v_vec, w_vec)
         if _cross[2] < 0:
             _dot *= -1.0

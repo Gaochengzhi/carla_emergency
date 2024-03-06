@@ -20,17 +20,19 @@ def main():
     destroy_all_actors(world)
     main_com = MainCommuicator(config)
     main_com.send_obj("start")
-    # load_agents(config)
-    load_batch_agents(config)
-    # load_conventional_agents(world, TM, config)
+    load_agents(config)
+    # load_batch_agents(config)
+    load_conventional_agents(world, TM, config)
 
     TrafficFlowManager().start()
     # DataRecorder(config).start()
 
-    @log_time_cost
-    # @time_const(fps=30)
+    # @log_time_cost
+    @time_const(fps=config["fps"])
     def run_step(world):
         world.tick()
+        # world.wait_for_tick()
+        # time.sleep(100)
     try:
         while True:
             run_step(world)

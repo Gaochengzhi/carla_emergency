@@ -64,7 +64,7 @@ def draw_xy(world, xs, ys, color=carla.Color(255, 0, 0), size=0.09, life_time=0.
 
 def draw_list(world, list_xy, color=carla.Color(255, 0, 0), size=0.09, life_time=0.1):
     for point in list_xy:
-        carla_location = carla.Location(x=point[0], y=point[1], z=3)
+        carla_location = carla.Location(x=point[0], y=point[1], z=2)
         world.debug.draw_point(
             carla_location, size=size, color=color, life_time=life_time
         )
