@@ -24,8 +24,8 @@ class TrafficFlowManager(BaseAgent):
         self.profiler = Profiler(interval=0.001)
 
     def run(self):
-        # @log_time_cost(name="traffic")
 
+        # @log_time_cost(name="traffic")
         @time_const(fps=self.config["fps"])
         def run_step(world):
             self.profiler.start()

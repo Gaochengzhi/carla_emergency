@@ -49,17 +49,17 @@ class SensorManager:
         # rear_radar_transform = carla.Transform(carla.Location(
         #     x=-self.vehicle_info["length"], z=self.vehicle_info["height"]), carla.Rotation(yaw=180, pitch=7))
         left_radar_transform = carla.Transform(carla.Location(
-            y=-self.vehicle_info["width"], z=self.vehicle_info["height"]), carla.Rotation(yaw=-60, pitch=7))
+            y=-self.vehicle_info["width"], z=self.vehicle_info["height"]), carla.Rotation(yaw=-80, pitch=7))
         right_radar_transform = carla.Transform(carla.Location(
-            y=self.vehicle_info["width"], z=self.vehicle_info["height"]), carla.Rotation(yaw=60, pitch=7))
+            y=self.vehicle_info["width"], z=self.vehicle_info["height"]), carla.Rotation(yaw=80, pitch=7))
 
         self.radar_list.append(self.add_radar("front", h_fov=25, v_fov=20,
-                                              radar_transform=front_radar_transform, range=35))
+                                              radar_transform=front_radar_transform, range=25))
         # self.radar_list.append(self.add_radar("rear", h_fov=15, v_fov=15, radar_transform=rear_radar_transform,range=15))
         self.radar_list.append(self.add_radar("left", h_fov=100, v_fov=15, radar_transform=left_radar_transform,
-                                              range=3))
+                                              range=3.5))
         self.radar_list.append(self.add_radar("right", h_fov=100, v_fov=15, radar_transform=right_radar_transform,
-                                              range=3))
+                                              range=3.5))
 
     def add_radar(self, radar_id, h_fov, v_fov, radar_transform, points_per_second="100", range="50"):
         weak_self = weakref.ref(self)
@@ -129,12 +129,12 @@ class SensorManager:
                 pitch=current_rot.pitch + alt, yaw=current_rot.yaw + azi, roll=current_rot.roll))
             fw_vec = transform.transform(fw_vec)
             color = carla.Color(255, 0, 0)
-            # self.world.debug.draw_point(
-            #     radar_data.transform.location + fw_vec,
-            #     size=0.75,
-            #     life_time=0.06,
-            #     persistent_lines=False,
-            #     color=color)
+            self.world.debug.draw_point(
+                radar_data.transform.location + fw_vec,
+                size=0.75,
+                life_time=0.06,
+                persistent_lines=False,
+                color=color)
 
 
 class Obstacle:

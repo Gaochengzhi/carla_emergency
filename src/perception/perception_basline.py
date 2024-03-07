@@ -9,7 +9,7 @@ class FakePerception:
         self.vehicle = vehicle
         self.config = config
 
-    def get_road_edge(self, waypoint):
+    def get_road_edge(self, waypoint, oppsite=False):
         lane_width = waypoint.lane_width
         current_lane_type = waypoint.lane_type
         # Initialize offsets

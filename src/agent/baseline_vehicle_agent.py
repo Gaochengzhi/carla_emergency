@@ -24,17 +24,22 @@ class BaselineVehicleAgent(BaseAgent):
         self.count = 0
 
     def run(self):
-        # print pid
         @time_const(fps=self.config["fps"])
         def run_step(world, control):
             obs = self.communi_agent.rec_obj("router")
-            self.local_planner.run_step(obs, control)
+            state_id =self.local_planner.run_step(obs, control)
+            if state_id == -1:
+                print("rerout")
+                self.global_router_waypoints = [x[0] for x in self.global_route_planner.trace_route(
+                    self.vehicle.get_location(), self.end_point)]
+                self.local_planner.global_waypoints = self.global_router_waypoints
+
 
         client, world = connect_to_server(1000, 2000)
         map = world.get_map()
         self.start_agent()
         self.set_communi_agent()
-        start_point, end_point = self.get_navi_pos(world)
+        start_point, self.end_point = self.get_navi_pos(world)
         self.vehicle = self.create_vehicle(world, start_point,
                                            self.config["type"])
 
@@ -45,7 +50,7 @@ class BaselineVehicleAgent(BaseAgent):
         self.global_route_planner = GlobalRoutePlanner(
             world.get_map(), sampling_resolution=5)
         self.global_router_waypoints = [x[0] for x in self.global_route_planner.trace_route(
-            start_point.location, end_point.location)]
+            start_point.location, self.end_point.location)]
         self.local_planner = FrenetPlanner(
             world, map, self.global_router_waypoints, self.vehicle, self.config, self.controller, self.sensor_manager)
         control = carla.VehicleControl()
