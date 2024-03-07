@@ -16,7 +16,7 @@ class Vector3D:
 
 
 def compute_future_state(info, dt):
-    dt = dt + 1.0
+    dt = dt+5
     location = info['location']
     velocity = info['velocity']
     acceleration = info['acceleration']
@@ -25,6 +25,11 @@ def compute_future_state(info, dt):
         y=location.y + velocity.y * dt + 0.5 * acceleration.y * dt ** 2,
         z=location.z + velocity.z * dt + 0.5 * acceleration.z * dt ** 2
     )
+    location = Location(
+        x=location.x,
+        y=location.y,
+        z=location.z
+    )
     future_velocity = Vector3D(
         x=velocity.x,
         y=velocity.y,
@@ -32,9 +37,14 @@ def compute_future_state(info, dt):
     )
     future_state = {
         'id': info['id'],
-        'location': future_location,
-        'velocity': compute_3D21d(future_velocity),
-        'yaw': info['transform'].rotation.yaw
+        'location': location,
+        'flocaiton': future_location,
+        "velocity": compute_3D21d(velocity),
+        'fvelocity': compute_3D21d(future_velocity),
+        'yaw': info['transform'].rotation.yaw,
+        "except_v": None,
+        "except_offset": None
+
     }
     return future_state
 

@@ -27,20 +27,19 @@ class BaselineVehicleAgent(BaseAgent):
         @time_const(fps=self.config["fps"])
         def run_step(world, control):
             obs = self.communi_agent.rec_obj("router")
-            state_id =self.local_planner.run_step(obs, control)
+            state_id = self.local_planner.run_step(obs, control)
             if state_id == -1:
                 print("rerout")
                 self.global_router_waypoints = [x[0] for x in self.global_route_planner.trace_route(
-                    self.vehicle.get_location(), self.end_point)]
+                    self.vehicle.get_location(), self.start_point.location)]
                 self.local_planner.global_waypoints = self.global_router_waypoints
-
 
         client, world = connect_to_server(1000, 2000)
         map = world.get_map()
         self.start_agent()
         self.set_communi_agent()
-        start_point, self.end_point = self.get_navi_pos(world)
-        self.vehicle = self.create_vehicle(world, start_point,
+        self.start_point, self.end_point = self.get_navi_pos(world)
+        self.vehicle = self.create_vehicle(world, self.start_point,
                                            self.config["type"])
 
         self.vehicle_info = self.init_vehicle_info()
@@ -48,20 +47,20 @@ class BaselineVehicleAgent(BaseAgent):
             world, self.vehicle, self.vehicle_info, self.config)
         self.controller = VehiclePIDController(self.vehicle)
         self.global_route_planner = GlobalRoutePlanner(
-            world.get_map(), sampling_resolution=5)
+            world.get_map(), sampling_resolution=3)
         self.global_router_waypoints = [x[0] for x in self.global_route_planner.trace_route(
-            start_point.location, self.end_point.location)]
+            self.start_point.location, self.end_point.location)]
         self.local_planner = FrenetPlanner(
             world, map, self.global_router_waypoints, self.vehicle, self.config, self.controller, self.sensor_manager)
         control = carla.VehicleControl()
         # debug
-        # set_bird_view(world, start_point.location, 50)
+        # set_bird_view(world, self.start_point.location, 80)
         # draw_waypoints_arraw(
         #     world, self.global_router_waypoints, 1, life_time=100)
         try:
             while True:
                 # if self.vehicle.attributes["role_name"] == "agent_0" and True:
-                set_bird_view(world, self.vehicle.get_location(), 80)
+                # set_bird_view(world, self.vehicle.get_location(), 80)
                 run_step(world, control)
         except Exception as e:
             logging.error(f"ego vehicle agent error:{e}")

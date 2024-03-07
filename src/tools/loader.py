@@ -5,7 +5,7 @@ import carla
 
 def load_agents(config):
     for i, agent_info in enumerate(config["agents"]):
-        agent_info["ignore_traffic_light"] = False
+        agent_info["ignore_traffic_light"] = True
         agent_info["fps"] = config["fps"]
         BaselineVehicleAgent(agent_info).start()
 
@@ -31,21 +31,24 @@ def load_batch_agents(config):
 def load_conventional_agents(world, tm, config):
     try:
         spawn_point = world.get_map().get_spawn_points()
-        config["spwan_list"] = random.sample(range(0, 90), 70)
+        # config["spwan_list"] = random.sample(range(0, 90), 90)
         # config["spwan_list"] = [65, 64, 63] + random.sample(range(64, 100), 27)
-        # config["spwan_list"] = [66]
-        config["target_list"] = random.sample(range(100, 300), 70)
-        # config["target_list"] = [1, 2, 6, 5, 6, 7, 8]
+        config["spwan_list"] = [136, 135, 173, 176, 295, 294, 153, 154]
+        # config["target_list"] = random.sample(range(100, 300), 70)
+        config["target_list"] = [86, 85, 101, 100, 11, 12, 41, 42]
         for i, spwan_target in enumerate(zip(config["spwan_list"], config["target_list"])):
             vehicle_bp = world.get_blueprint_library().filter(
                 "vehicle.tesla.model3*")[0]
             vehicle_bp.set_attribute('role_name', f"agent_{i}")
-            vehicle = world.spawn_actor(vehicle_bp, spawn_point[spwan_target[0]])
-            # tm.ignore_lights_percentage(vehicle, 100)
+            vehicle = world.spawn_actor(
+                vehicle_bp, spawn_point[spwan_target[0]])
+            destination = spawn_point[spwan_target[1]].location
+            tm.ignore_lights_percentage(vehicle, 100)
+            # vehicle.set_destination(destination)
             # vehicle.set_simulate_physics(False)
             # vehicle.set_target_velocity(carla.Vector3D(0, 0, 105))
             vehicle.set_autopilot(True, tm.get_port())
-            tm.vehicle_percentage_speed_difference(vehicle, 45)
+            tm.vehicle_percentage_speed_difference(vehicle, -50)
     except Exception as e:
         print(f"load_conventional_agents error:{e}")
         pass

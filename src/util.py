@@ -175,7 +175,7 @@ def get_vehicle_info(vehicle):
     transform = vehicle.get_transform()
     # vehicle_physics = vehicle.get_physics_control()
     vehicle_info = {
-        'id': vehicle.id,
+        'id': vehicle.attributes["role_name"],
         'location': location,
         'velocity': velocity,
         'acceleration': acceleration,
@@ -355,21 +355,26 @@ def compute_magnitude_angle(target_location, current_location, orientation):
     """
     Compute relative angle and distance between a target_location and a current_location
 
-        :param target_location: location of the target object
-        :param current_location: location of the reference object
-        :param orientation: orientation of the reference object
-        :return: a tuple composed by the distance to the object and the angle between both objects
+    :param target_location: location of the target object
+    :param current_location: location of the reference object
+    :param orientation: orientation of the reference object (in degrees)
+    :return: a tuple composed by the distance to the object and the angle between both objects
     """
-    target_vector = np.array(
-        [target_location.x - current_location.x, target_location.y - current_location.y])
-    norm_target = np.linalg.norm(target_vector)
+    dx = target_location.x - current_location.x
+    dy = target_location.y - current_location.y
+    norm_target = math.sqrt(dx ** 2 + dy ** 2)
 
-    forward_vector = np.array(
-        [math.cos(math.radians(orientation)), math.sin(math.radians(orientation))])
-    d_angle = math.degrees(math.acos(
-        np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+    orientation_rad = math.radians(orientation)
+    cos_ori = math.cos(orientation_rad)
+    sin_ori = math.sin(orientation_rad)
 
-    return (norm_target, d_angle)
+    if norm_target == 0:
+        return 0, 0
+
+    d_angle = math.degrees(
+        math.acos(max(-1.0, min(1.0, (dx * cos_ori + dy * sin_ori) / norm_target))))
+
+    return norm_target, d_angle
 
 
 def distance_vehicle(waypoint, vehicle_transform):

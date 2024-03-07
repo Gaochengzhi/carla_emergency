@@ -56,7 +56,8 @@ class WorldManager:
         map_name = self.config["map_name"]
         if self.config["is_custum_map"]:
             data = None
-            with open("/home/ujs/mycode/highways.osm", encoding='utf-8') as od_file:
+            # with open("/home/ujs/mycode/highways.osm", encoding='utf-8') as od_file:
+            with open("/home/ujs/mycode/carla_emergency/assets/IntersectionA.osm", encoding='utf-8') as od_file:
                 try:
                     data = od_file.read()
                 except OSError:
@@ -65,10 +66,10 @@ class WorldManager:
             logging.info('Converting OSM data to opendrive')
             xodr_data = carla.Osm2Odr.convert(data)
             logging.info('load opendrive map.')
-            vertex_distance = 4.0  # in meters
-            max_road_length = 3500.0  # in meters
-            wall_height = 0.0      # in meters
-            extra_width = 3.6      # in meters
+            vertex_distance = 8.0  # in meters
+            max_road_length = 9500.0  # in meters
+            wall_height = 0.5      # in meters
+            extra_width = 1.6      # in meters
             world = self.client.generate_opendrive_world(
                 xodr_data, carla.OpendriveGenerationParameters(
                     vertex_distance=vertex_distance,
@@ -78,6 +79,7 @@ class WorldManager:
                     smooth_junctions=True,
                     enable_mesh_visibility=True))
             return world
+
         current_world = self.client.get_world()
         if (
             self._compare_map(map_name, current_world)

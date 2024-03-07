@@ -57,9 +57,9 @@ class SensorManager:
                                               radar_transform=front_radar_transform, range=25))
         # self.radar_list.append(self.add_radar("rear", h_fov=15, v_fov=15, radar_transform=rear_radar_transform,range=15))
         self.radar_list.append(self.add_radar("left", h_fov=100, v_fov=15, radar_transform=left_radar_transform,
-                                              range=3.5))
+                                              range=3))
         self.radar_list.append(self.add_radar("right", h_fov=100, v_fov=15, radar_transform=right_radar_transform,
-                                              range=3.5))
+                                              range=3))
 
     def add_radar(self, radar_id, h_fov, v_fov, radar_transform, points_per_second="100", range="50"):
         weak_self = weakref.ref(self)
@@ -124,17 +124,17 @@ class SensorManager:
             azi = math.degrees(detect.azimuth)  # azimuth
             alt = math.degrees(detect.altitude)
             velocity = detect.velocity  # velocity of the detected object
-            fw_vec = carla.Vector3D(x=detect.depth - 0.25)
+            fw_vec = carla.Vector3D(x=detect.depth - 0.15)
             transform = carla.Transform(carla.Location(), carla.Rotation(
                 pitch=current_rot.pitch + alt, yaw=current_rot.yaw + azi, roll=current_rot.roll))
             fw_vec = transform.transform(fw_vec)
             color = carla.Color(255, 0, 0)
-            self.world.debug.draw_point(
-                radar_data.transform.location + fw_vec,
-                size=0.75,
-                life_time=0.06,
-                persistent_lines=False,
-                color=color)
+            # self.world.debug.draw_point(
+            #     radar_data.transform.location + fw_vec,
+            #     size=0.75,
+            #     life_time=0.16,
+            #     persistent_lines=False,
+            #     color=color)
 
 
 class Obstacle:

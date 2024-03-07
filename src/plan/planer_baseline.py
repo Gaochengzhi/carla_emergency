@@ -22,7 +22,7 @@ class FrenetPlanner():
         self.map = map
         self.config = config
         self.vehicle = vehicle
-        self.id = vehicle.id
+        self.id = vehicle.attributes["role_name"]
         self.obs_list = []
         self.waypoint_buffer = []
         self.trajectories = []
@@ -36,16 +36,16 @@ class FrenetPlanner():
         self.perception = FakePerception(vehicle, config)
         self.car_following_model = IDM()
         self.use_car_following = False
-        self.max_speed = 33
-        self.target_speed = 20
+        self.max_speed = 13
+        self.target_speed = 10
         self.step = 0
-        self.lane_change_step = 0
+        self.change_back_step = 0
         self.wait_step = 8
-        # self.vehicle.show_debug_telemetry(True)
+        self.vehicle.show_debug_telemetry(True)
         self.check_update_waypoints()
         self.left_side, self.right_side = self.perception.get_road_edge(
             self.waypoint_buffer[0])
-        self.profiler = Profiler(interval=0.001)
+        # self.profiler = Profiler(interval=0.001)
 
     def adjust_offset(self, direction):
         self.target_offset += direction
@@ -63,20 +63,20 @@ class FrenetPlanner():
             self.obstacle_update(obs)
             self.check_waypoints()
             self.check_trajectories()
-            self.check_traffic_light()
             if self.step % self.wait_step == 0:
                 if self.check_collision():
                     self.adjust_trajectories()
-                    self.wait_step +=8
+                    self.wait_step += 8
                 else:
                     self.use_car_following = False
                     self.wait_step = 8
-                    self.target_speed = self.max_speed
-            if self.step % 32 == 0 and self.lane_change_step > 180:
-                if self.target_offset > 0.1 and self.check_radar(-10):
-                    self.adjust_offset(-1)
-                elif self.target_offset < -0.1 and self.check_radar(10):
-                    self.adjust_offset(1)
+                    self.target_speed = min(
+                        self.max_speed, self.target_speed*1.5)
+                    if self.step % self.wait_step == 0 and self.change_back_step > 180:
+                        if self.target_offset > 0.1 and self.check_radar(-10):
+                            self.adjust_offset(-1)
+                        elif self.target_offset < -0.1 and self.check_radar(10):
+                            self.adjust_offset(1)
 
             if len(self.trajectories) < 1:
                 return
@@ -85,15 +85,6 @@ class FrenetPlanner():
                            z=2, life_time=0.3, size=0.1)
             # draw_list(self.world, self.trajectories, size=0.1,
             #           color=carla.Color(0, 250, 123), life_time=0.25)
-            self.update_current_offset()
-            angle = self.get_relative_waypoint_angle()
-            if self.check_radar(angle):
-                self.target_speed = 0
-                self.use_car_following = True
-                self.target_offset = self.current_offset
-                self.update_trajectories(self.target_offset)
-            else:
-                self.target_speed = self.max_speed
 
             if self.use_car_following:
                 leading_vehicle = self.sensor_manager.radar_res["front"]
@@ -111,8 +102,19 @@ class FrenetPlanner():
                         front_v, distance_s, self.speed)
                     self.target_speed = max(0, self.speed + a)
                 else:
-                    self.target_speed = 15
+                    self.target_speed = 10
 
+            self.check_traffic_light()
+            self.update_current_offset()
+            angle = self.get_relative_waypoint_angle()
+            if self.check_radar(angle) or self.check_radar(-angle):
+                self.target_speed = 1
+                self.use_car_following = True
+                self.target_offset = self.current_offset
+                self.update_trajectories(self.target_offset)
+            else:
+                self.target_speed = min(
+                    self.max_speed, self.target_speed*1.5)
             # CONTROLLER
             target_waypoint = carla.Transform(
                 carla.Location(x=self.trajectories[0][0], y=self.trajectories[0][1]))
@@ -123,7 +125,9 @@ class FrenetPlanner():
 
             self.vehicle.apply_control(control)
             self.step += 1
-            self.lane_change_step +=1
+            self.change_back_step += 1
+            # self.profiler.stop()
+            # self.profiler.print(show_all=True)
 
         except Exception as e:
             logging.error(f"plan run_step error: {e}")
@@ -143,14 +147,14 @@ class FrenetPlanner():
 
     def check_trajectories(self):
         if compute_distance2D(self.trajectories[0], [self.location.x, self.location.y]) < 5:
-            
+
             self.trajectories.pop(0)
             self.update_trajectories(self.target_offset)
 
     def check_waypoints(self):
-        distance_to_waypoint = compute_distance(
+        distance_to_next_waypoint = compute_distance(
             self.waypoint_buffer[0].transform.location, self.location)
-        if distance_to_waypoint < 5+abs(int(self.target_offset)):
+        if distance_to_next_waypoint < 3+abs(int(self.target_offset)):
             self.waypoint_buffer.pop(0)
             self.global_waypoints.pop(0)
             if len(self.global_waypoints) < 1:
@@ -161,8 +165,6 @@ class FrenetPlanner():
             self.left_side, self.right_side = self.perception.get_road_edge(
                 self.waypoint_buffer[0])
             self.check_road_edge()
-        elif distance_to_waypoint > 15 or self.get_relative_waypoint_angle()> 90 or self.get_relative_waypoint_angle() < -90:
-            return -1
 
     def check_road_edge(self):
         if self.target_offset > self.right_side:
@@ -191,7 +193,7 @@ class FrenetPlanner():
                     (offset, highest_velocity, nearest_index))
             else:
                 # Found a collision-free offset, apply it and return
-                self.lane_change_step = 0
+                self.change_back_step = 0
                 if abs(offset-self.target_offset) > 4:
                     self.target_offset - 3 if offset > 0 else self.target_offset + 3
                 else:
@@ -237,7 +239,6 @@ class FrenetPlanner():
             # Compute directions and normals for offset application
             directions = np.diff(interpolated_waypoints, axis=0)
             normals = np.array([-directions[:, 1], directions[:, 0]]).T
-            # Normalize without np.linalg.norm
             magnitudes = np.sqrt(
                 normals[:, 0]**2 + normals[:, 1]**2).reshape(-1, 1)
             normals = normals / magnitudes
@@ -267,7 +268,7 @@ class FrenetPlanner():
         return collision_info if collision_info else False
 
     def update_waypoint_buffer(self):
-        num_push = min(int(self.speed*2/5)+2,
+        num_push = min(int(self.speed*2/3)+2,
                        len(self.global_waypoints), 13)
         self.waypoint_buffer = self.global_waypoints[:num_push]
         if num_push < 3:
@@ -315,6 +316,11 @@ class FrenetPlanner():
                 if is_within_distance_obs(ego_location, target_location, 50, self.speed, target_velocity, ego_yaw, [-155, 155]):
                     obs_list.append(
                         [obs_info["location"].x, obs_info["location"].y, obs_info["velocity"], obs_info["yaw"]])
+            else:
+                if obs_info["except_v"]:
+                    self.max_speed = obs_info["except_v"]
+                else:
+                    self.max_speed = 13
         self.obs_list = obs_list
 
     def compute_brake(self, distance):
@@ -322,7 +328,7 @@ class FrenetPlanner():
         return brake**0.4
 
     def ego_state_update(self):
-        self.location, self.transform, self.speed, _ = self.perception.get_vehicle_info()
+        self.location, self.transform, self.speed, _ = self.perception.get_ego_vehicle_info()
 
     def get_relative_waypoint_angle(self):
         if self.waypoint_buffer:
@@ -351,13 +357,14 @@ class FrenetPlanner():
             self.current_offset = sum(
                 coord1 * coord2 for coord1, coord2 in zip(vector_waypoint_to_ego, normal_vector))
             if abs(self.current_offset) > 0.1:
-                # print(self.current_offset)
                 pass
 
     def check_traffic_light(self):
-        if self.perception.is_traffic_light_red():
-            self.target_speed = 0
-            self.use_car_following = True
+        if not self.config["ignore_traffic_light"]:
+            if self.perception.is_traffic_light_red():
+                self.target_speed = 0
+                self.use_car_following = True
+                return
         if self.vehicle.is_at_traffic_light():
-            self.target_speed = 15
+            self.target_speed = 10
             self.use_car_following = True

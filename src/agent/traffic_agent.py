@@ -11,6 +11,8 @@ from agent.baseAgent import BaseAgent
 import time
 from tools.config_manager import config as cfg
 from pyinstrument import Profiler
+from scipy.spatial import KDTree
+import matplotlib.pyplot as plt
 
 
 class TrafficFlowManager(BaseAgent):
@@ -18,25 +20,34 @@ class TrafficFlowManager(BaseAgent):
         self,
     ) -> None:
         self.config = cfg.config
-        self.fps = 10
+        self.fps = 20
         BaseAgent.__init__(self, "TrafficFlow",
                            self.config["traffic_agent_port"])
-        self.profiler = Profiler(interval=0.001)
+        # self.profiler = Profiler(interval=0.001)
 
     def run(self):
-
         # @log_time_cost(name="traffic")
         @time_const(fps=self.config["fps"])
         def run_step(world):
-            self.profiler.start()
+            # self.profiler.start()
             try:
-                preception_res = thread_process_vehicles(
+                perception_res = thread_process_vehicles(
                     world, predict, self.fps)
-                self.communi_agent.send_obj(preception_res)
+                if self.config["debug_intersection"]:
+                    for perception in perception_res:
+                        if perception["id"] in ["agent4", "agent1", "agent2", "agent3"]:
+                            perception["except_v"] = 21
+                        else:
+                            perception["except_v"] = 9
+                elif self.config["debug"]:
+                    pass
+
+                self.communi_agent.send_obj(perception_res)
             except Exception as e:
                 logging.error(e)
-            # draw_future_locations(world, preception_res, life_time=0.2)
-            self.profiler.stop()
+                logging.error(e.__traceback__.tb_lineno)
+            # draw_future_locations(world, perception_res, life_time=0.2)
+            # self.profiler.stop()
             # self.profiler.print(show_all=True)
         client, world = connect_to_server(
             self.config["carla_timeout"], self.config["carla_port"])

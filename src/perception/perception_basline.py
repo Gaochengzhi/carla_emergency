@@ -42,7 +42,7 @@ class FakePerception:
                 return True
         return False
 
-    def get_vehicle_info(self):
+    def get_ego_vehicle_info(self):
         location = self.vehicle.get_location()
         velocity = self.vehicle.get_velocity()
         transform = self.vehicle.get_transform()

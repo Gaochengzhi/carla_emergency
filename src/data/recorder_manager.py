@@ -18,6 +18,7 @@ class DataRecorder(BaseAgent):
         config,
     ) -> None:
         self.config = config
+        self.step = 0
         BaseAgent.__init__(self, "DataRecorder",
                            config["data_port"])
 
@@ -26,10 +27,11 @@ class DataRecorder(BaseAgent):
         @time_const(fps=self.config["fps"])
         def run_step(world, writer):
             lock = Lock()
-            current_time = time.time()
+            current_time = self.step
             try:
                 v_list = thread_process_vehicles(
                     world, self.write_vehicle_info, writer, lock, time_now=current_time)
+                self.step += 1
             except Exception as e:
                 logging.error(e)
         if not self.config["record"]:
@@ -39,7 +41,6 @@ class DataRecorder(BaseAgent):
         self.start_agent()
         writer = self.init_data_file(
             self.config["data_folder_path"])
-
         writer.writerow([
             'time',
             'vehicle_id',
@@ -77,7 +78,6 @@ class DataRecorder(BaseAgent):
             angular_velocity = vehicle.get_angular_velocity()
             transform = vehicle.get_transform()
             control = vehicle.get_control()
-
             # Physics control info
             # physics_control = vehicle.get_physics_control()
 
