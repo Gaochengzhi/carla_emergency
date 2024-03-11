@@ -20,7 +20,7 @@ def main():
     destroy_all_actors(world)
     main_com = MainCommuicator(config)
     main_com.send_obj("start")
-    # load_agents(config)
+    load_agents(config)
     # load_batch_agents(config)
     load_conventional_agents(world, TM, config)
 

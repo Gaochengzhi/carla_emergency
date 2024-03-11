@@ -7,12 +7,22 @@ from agent.baseline_vehicle_agent import BaselineVehicleAgent
 from prediction.predict_baseline import predict
 from view.debug_manager import draw_future_locations
 from util import connect_to_server, time_const, log_time_cost, thread_process_vehicles, get_speed
+from cythoncode.cutil import is_within_distance_obs
 from agent.baseAgent import BaseAgent
 import time
 from tools.config_manager import config as cfg
 from pyinstrument import Profiler
 from scipy.spatial import KDTree
 import matplotlib.pyplot as plt
+import numpy as np
+
+
+def is_within_angle_range(ego_location, target_location, ego_yaw, angle_interval):
+    dx = target_location.x - ego_location[0]
+    dy = target_location.y - ego_location[1]
+    angle = np.degrees(np.arctan2(dy, dx))
+    angle_diff = (angle - ego_yaw + 180) % 360 - 180
+    return angle_interval[0] <= angle_diff <= angle_interval[1]
 
 
 class TrafficFlowManager(BaseAgent):
@@ -26,21 +36,40 @@ class TrafficFlowManager(BaseAgent):
         # self.profiler = Profiler(interval=0.001)
 
     def run(self):
-        # @log_time_cost(name="traffic")
         @time_const(fps=self.config["fps"])
+        # @log_time_cost(name="traffic")
         def run_step(world):
             # self.profiler.start()
             try:
                 perception_res = thread_process_vehicles(
                     world, predict, self.fps)
-                if self.config["debug_intersection"]:
+                if self.config.get("debug_intersection", False):
                     for perception in perception_res:
                         if perception["id"] in ["agent4", "agent1", "agent2", "agent3"]:
                             perception["except_v"] = 21
                         else:
-                            perception["except_v"] = 9
-                elif self.config["debug"]:
-                    pass
+                            perception["except_v"] = 10
+                if self.config.get("emergency", False):
+                    for perception in perception_res:
+                        if perception["id"] == "emergency":
+                            for other_perception in perception_res:
+                                if other_perception["id"] != "emergency":
+                                    ego_location = np.array(
+                                        [perception["location"].x, perception["location"].y], dtype=np.float32)
+                                    target_location = np.array(
+                                        [other_perception["location"].x, other_perception["location"].y], dtype=np.float32)
+                                    ego_speed = perception["velocity"]
+                                    target_velocity = other_perception["velocity"]
+                                    ego_yaw = perception["yaw"]
+                                    if is_within_distance_obs(ego_location, target_location, max_distance=50, ego_speed=ego_speed, target_velocity=target_velocity, ego_yaw=ego_yaw, angle_interval=(-80, 80)):
+                                        other_perception["except_offset"] = 1
+                if self.config.get("emergency", False):
+                    for perception in perception_res:
+                        if perception["id"] in ["agent"+str(i) for i in range(5)]:
+                            # perception["except_offset"] = 1
+                            pass
+                # elif self.config["debug"]:
+                #     pass
 
                 self.communi_agent.send_obj(perception_res)
             except Exception as e:

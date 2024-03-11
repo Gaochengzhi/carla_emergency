@@ -54,13 +54,13 @@ class BaselineVehicleAgent(BaseAgent):
             world, map, self.global_router_waypoints, self.vehicle, self.config, self.controller, self.sensor_manager)
         control = carla.VehicleControl()
         # debug
-        # set_bird_view(world, self.start_point.location, 80)
+        set_bird_view(world, self.start_point.location, 80)
         # draw_waypoints_arraw(
         #     world, self.global_router_waypoints, 1, life_time=100)
         try:
             while True:
-                # if self.vehicle.attributes["role_name"] == "agent_0" and True:
-                # set_bird_view(world, self.vehicle.get_location(), 80)
+                if self.vehicle.attributes["role_name"] == "emergency":
+                    set_bird_view(world, self.vehicle.get_location(), 80)
                 run_step(world, control)
         except Exception as e:
             logging.error(f"ego vehicle agent error:{e}")
@@ -79,7 +79,6 @@ class BaselineVehicleAgent(BaseAgent):
         return start_point, end_point
 
     # @log_time_cost(name="ego_vehicle_agent")
-
     def set_communi_agent(self):
         self.communi_agent.init_subscriber("router",
                                            self.config["traffic_agent_port"])

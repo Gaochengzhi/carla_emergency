@@ -38,7 +38,7 @@ def compute_future_state(info, dt):
     future_state = {
         'id': info['id'],
         'location': location,
-        'flocaiton': future_location,
+        'flocation': future_location,
         "velocity": compute_3D21d(velocity),
         'fvelocity': compute_3D21d(future_velocity),
         'yaw': info['transform'].rotation.yaw,

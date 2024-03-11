@@ -53,6 +53,8 @@ class WorldManager:
         return str(world.get_map().name)[-2:] != map_name[-2:]
 
     def create_world(self):
+        # print all available maps
+        all_maps = self.client.get_available_maps()
         map_name = self.config["map_name"]
         if self.config["is_custum_map"]:
             data = None

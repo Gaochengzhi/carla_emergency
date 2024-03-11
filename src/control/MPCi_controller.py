@@ -1,4 +1,4 @@
-import cvxpy as cp
+import casadi as ca
 import carla
 import numpy as np
 from typing import List, Tuple
@@ -33,18 +33,46 @@ class VehicleModel:
         # 车辆当前位置和航向角
         x = transform.location.x
         y = transform.location.y
-        yaw = transform.rotation.yaw
+        yaw = np.deg2rad(transform.rotation.yaw)
 
         # 车辆当前速度大小和方向
         speed = np.linalg.norm([velocity.x, velocity.y, velocity.z])
-        direction = np.array(
-            [np.cos(np.deg2rad(yaw)), np.sin(np.deg2rad(yaw))])
+        direction = np.array([np.cos(yaw), np.sin(yaw)])
 
         # 更新车辆位置
         x += speed * direction[0] * dt
         y += speed * direction[1] * dt
 
         return x, y, yaw
+
+    def dynamics(self, x: ca.SX, u: ca.SX) -> ca.SX:
+        """
+        Vehicle dynamics model
+        :param x: Vehicle state vector (x, y, yaw, v, a, delta)
+        :param u: Control input vector (a, delta)
+        :return: Next state vector
+        """
+        # Extract states and inputs
+        x_pos = x[0]
+        y_pos = x[1]
+        yaw = x[2]
+        v = x[3]
+        a = u[0]
+        delta = u[1]
+
+        # Update states based on the vehicle dynamics equations
+        x_next = x_pos + v * ca.cos(yaw) * self.dt
+        y_next = y_pos + v * ca.sin(yaw) * self.dt
+        yaw_next = yaw + (v / self.wheelbase) * ca.tan(delta) * self.dt
+        v_next = v + a * self.dt
+        a_next = a
+        delta_next = delta
+
+        # Return the next state vector
+        return ca.vertcat(x_next, y_next, yaw_next, v_next, a_next, delta_next)
+
+        # Return the next state vector
+        return ca.vertcat(x_next, y_next, yaw_next, v_next, a_next, delta_next)
 
     def apply_control(self, throttle: float, steer: float, brake: float):
         """
@@ -67,7 +95,7 @@ class VehicleModel:
             brake=brake_control
         ))
 
-    def objective_function(self, x: np.ndarray, u: np.ndarray, target_speed: float, target_waypoints: List[Tuple[float, float]]) -> float:
+    def objective_function(self, x: ca.SX, u: ca.SX, target_speed: float, target_waypoints: List[Tuple[float, float]]) -> ca.SX:
         """
         目标函数
         :param x: 车辆状态向量 (x, y, yaw, v)
@@ -96,10 +124,10 @@ class VehicleModel:
 
         # 计算航向角误差
         if len(target_waypoints) > 1:
-            yaw_error = x[2] - np.arctan2(target_waypoints[1][1] - target_waypoints[0]
-                                          [1], target_waypoints[1][0] - target_waypoints[0][0])
+            yaw_error = x[2] - ca.atan2(target_waypoints[1][1] - target_waypoints[0][1],
+                                        target_waypoints[1][0] - target_waypoints[0][0])
         else:
-            yaw_error = 0
+            yaw_error = x[2] - x[2]  # 如果只有一个目标点，航向角误差为0
 
         v_error = x[3] - target_speed
 
@@ -118,40 +146,34 @@ class VehicleModel:
 
         return cost
 
-    def velocity_constraints(self, x: np.ndarray, v_min: float, v_max: float) -> Tuple[np.ndarray, np.ndarray]:
+    def velocity_constraints(self, x: ca.SX, v_min: float, v_max: float) -> List[ca.SX]:
         v = x[3]  # 当前速度
-        v_lower = np.maximum(v_min, v - self.max_deceleration * self.dt)
-        v_upper = np.minimum(v_max, v + self.max_acceleration * self.dt)
-        return v_lower, v_upper
+        v_lower = ca.fmax(v_min, v - self.max_deceleration * self.dt)
+        v_upper = ca.fmin(v_max, v + self.max_acceleration * self.dt)
+        return [v_lower <= v, v <= v_upper]
 
-    def acceleration_constraints(self, u_min: float, u_max: float) -> Tuple[np.ndarray, np.ndarray]:
-        a_lower = np.ones(self.N) * u_min
-        a_upper = np.ones(self.N) * u_max
-        return a_lower, a_upper
+    def acceleration_constraints(self, u_min: float, u_max: float) -> List[ca.SX]:
+        a = ca.SX.sym('a')
+        return [u_min <= a, a <= u_max]
 
-    def steering_constraints(self, u_min: float, u_max: float) -> Tuple[np.ndarray, np.ndarray]:
-        delta_lower = np.ones(self.N) * u_min
-        delta_upper = np.ones(self.N) * u_max
-        return delta_lower, delta_upper
+    def steering_constraints(self, u_min: float, u_max: float) -> List[ca.SX]:
+        delta = ca.SX.sym('delta')
+        return [u_min <= delta, delta <= u_max]
 
-    def lateral_acceleration_constraints(self, x: np.ndarray, u: np.ndarray, ay_max: float) -> Tuple[np.ndarray, np.ndarray]:
+    def lateral_acceleration_constraints(self, x: ca.SX, u: ca.SX, ay_max: float) -> List[ca.SX]:
         v = x[3]  # 当前速度
         delta = u[1]  # 转向角
-        ay = v**2 * np.tan(delta) / self.wheelbase  # 横向加速度
-        ay_lower = np.ones(self.N) * (-ay_max)
-        ay_upper = np.ones(self.N) * ay_max
-        return ay_lower, ay_upper
+        ay = v**2 * ca.tan(delta) / self.wheelbase  # 横向加速度
+        return [-ay_max <= ay, ay <= ay_max]
 
-    def tire_slip_angle_constraints(self, x: np.ndarray, u: np.ndarray, alpha_max: float) -> Tuple[np.ndarray, np.ndarray]:
+    def tire_slip_angle_constraints(self, x: ca.SX, u: ca.SX, alpha_max: float) -> List[ca.SX]:
         v = x[3]  # 当前速度
         delta = u[1]  # 转向角
-        alpha_f = np.arctan2(v * np.sin(delta), v *
-                             np.cos(delta) + self.lf * delta) - delta  # 前轮侧偏角
-        alpha_r = np.arctan2(v * np.sin(delta), v *
-                             np.cos(delta) - self.lr * delta)  # 后轮侧偏角
-        alpha_lower = np.ones(self.N) * (-alpha_max)
-        alpha_upper = np.ones(self.N) * alpha_max
-        return alpha_lower, alpha_upper
+        alpha_f = ca.atan2(v * ca.sin(delta), v *
+                           ca.cos(delta) + self.lf * delta) - delta  # 前轮侧偏角
+        alpha_r = ca.atan2(v * ca.sin(delta), v *
+                           ca.cos(delta) - self.lr * delta)  # 后轮侧偏角
+        return [-alpha_max <= alpha_f, alpha_f <= alpha_max, -alpha_max <= alpha_r, alpha_r <= alpha_max]
 
 
 class MPCController:
@@ -168,55 +190,74 @@ class MPCController:
         :param target_waypoints: 目标路点列表
         :return: 最优控制序列的第一个元素
         """
-        # 定义优化变量
-        x = cp.Variable((self.model.nx, self.N + 1))
-        u = cp.Variable((self.model.nu, self.N))
+        # 定义状态变量
+        x = ca.SX.sym('x', self.model.nx, self.N + 1)
+
+        # 定义控制输入变量
+        a = ca.SX.sym('a', self.N)
+        delta = ca.SX.sym('delta', self.N)
+        u = ca.vertcat(a, delta)
 
         # 定义目标函数
         cost = 0
         for k in range(self.N):
             cost += self.model.objective_function(
-                x[:, k], u[:, k], target_speed, target_waypoints[:2])
+                x[:, k], u[k::self.model.nu], target_speed, target_waypoints)
 
         # 定义约束条件
         constraints = []
         for k in range(self.N):
             # 动力学约束
             constraints += [x[:, k + 1] ==
-                            self.model.dynamics(x[:, k], u[:, k])]
+                            self.model.dynamics(x[:, k], u[k::self.model.nu])]
 
             # 状态约束
-            v_min, v_max = self.model.velocity_constraints(x[:, k], 0, 20)
-            constraints += [v_min <= x[3, k], x[3, k] <= v_max]
+            constraints += self.model.velocity_constraints(x[:, k], 0, 20)
 
             # 控制输入约束
-            a_min, a_max = self.model.acceleration_constraints(-1, 1)
-            delta_min, delta_max = self.model.steering_constraints(
-                -np.pi / 4, np.pi / 4)
-            constraints += [a_min <= u[0, k], u[0, k] <= a_max]
-            constraints += [delta_min <= u[1, k], u[1, k] <= delta_max]
+            constraints += self.model.acceleration_constraints(u[k], -1, 1)
+            constraints += self.model.steering_constraints(
+                u[k + self.N], -np.pi / 4, np.pi / 4)
 
             # 横向加速度约束
-            ay_min, ay_max = self.model.lateral_acceleration_constraints(
-                x[:, k], u[:, k], 5)
-            constraints += [ay_min <= x[4, k], x[4, k] <= ay_max]
+            constraints += self.model.lateral_acceleration_constraints(
+                x[:, k], u[k::self.model.nu], 5)
 
             # 轮胎侧偏角约束
-            alpha_min, alpha_max = self.model.tire_slip_angle_constraints(
-                x[:, k], u[:, k], np.deg2rad(5))
-            constraints += [alpha_min <= x[5, k], x[5, k] <= alpha_max]
+            constraints += self.model.tire_slip_angle_constraints(
+                x[:, k], u[k::self.model.nu], np.deg2rad(5))
 
         # 初始状态约束
         constraints += [x[:, 0] == x0]
 
+        # 定义优化问题
+        nlp = {'x': ca.vertcat(ca.reshape(x, -1, 1), u),
+               'f': cost,
+               'g': ca.vertcat(*constraints)}
+
+        # 设置优化选项
+        opts = {'ipopt.print_level': 0, 'print_time': 0}
+
+        # 创建求解器
+        solver = ca.nlpsol('solver', 'ipopt', nlp, opts)
+
+        # 设置初始猜测值
+        x_init = np.zeros((self.model.nx, self.N + 1))
+        u_init = np.zeros((self.model.nu * self.N, 1))
+        x_init[:, 0] = x0
+        lbx = np.zeros((self.model.nx * (self.N + 1) +
+                       self.model.nu * self.N, 1))
+        ubx = np.zeros((self.model.nx * (self.N + 1) +
+                       self.model.nu * self.N, 1))
+        lbx[0:self.model.nx * (self.N + 1):self.model.nx] = x0
+        ubx[0:self.model.nx * (self.N + 1):self.model.nx] = x0
+
         # 求解优化问题
-        problem = cp.Problem(cp.Minimize(cost), constraints)
-        problem.solve()
+        sol = solver(x0=ca.vertcat(ca.reshape(x_init, -1, 1), u_init),
+                     lbx=lbx, ubx=ubx, lbg=0, ubg=0)
 
-        # 返回最优控制序列的第一个元素
-        if problem.status == cp.OPTIMAL or problem.status == cp.OPTIMAL_INACCURATE:
-            u_opt = u[:, 0].value
-        else:
-            u_opt = np.zeros(self.model.nu)
+        # 提取最优控制序列的第一个元素
+        u_opt = sol['x'][-self.model.nu *
+                         self.N:].reshape((self.model.nu, self.N))
 
-        return u_opt
+        return u_opt[:, 0]

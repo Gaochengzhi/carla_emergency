@@ -53,12 +53,12 @@ class SensorManager:
         right_radar_transform = carla.Transform(carla.Location(
             y=self.vehicle_info["width"], z=self.vehicle_info["height"]), carla.Rotation(yaw=80, pitch=7))
 
-        self.radar_list.append(self.add_radar("front", h_fov=25, v_fov=20,
+        self.radar_list.append(self.add_radar("front", h_fov=45, v_fov=20,
                                               radar_transform=front_radar_transform, range=25))
         # self.radar_list.append(self.add_radar("rear", h_fov=15, v_fov=15, radar_transform=rear_radar_transform,range=15))
-        self.radar_list.append(self.add_radar("left", h_fov=100, v_fov=15, radar_transform=left_radar_transform,
+        self.radar_list.append(self.add_radar("left", h_fov=120, v_fov=15, radar_transform=left_radar_transform,
                                               range=3))
-        self.radar_list.append(self.add_radar("right", h_fov=100, v_fov=15, radar_transform=right_radar_transform,
+        self.radar_list.append(self.add_radar("right", h_fov=120, v_fov=15, radar_transform=right_radar_transform,
                                               range=3))
 
     def add_radar(self, radar_id, h_fov, v_fov, radar_transform, points_per_second="100", range="50"):
@@ -81,7 +81,7 @@ class SensorManager:
         obstacle_bp.set_attribute("only_dynamics", str(False))
         # obstacle_bp.debug_linetrace = True
         front_obs_transform = carla.Transform(
-            carla.Location(x=self.vehicle_info["length"], z=self.vehicle_info["height"]))
+            carla.Location(x=self.vehicle_info["length"]+5, z=self.vehicle_info["height"]))
         rear_obs_transform = carla.Transform(
             carla.Location(x=-self.vehicle_info["length"], z=self.vehicle_info["height"]))
         self.obstacle_sensor = self.world.spawn_actor(

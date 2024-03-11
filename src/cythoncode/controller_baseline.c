@@ -1814,7 +1814,7 @@ static PyObject *__pyx_codeobj__35;
  * 
  *     def __init__(self, vehicle, args_lateral={'K_P': 1.45,             # <<<<<<<<<<<<<<
  *                                               'K_I': 0.05, 'K_D': 0.2, 'dt': 0.1}, args_longitudinal={
- *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.55, max_brake=0.9,
+ *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.1}, offset=0, max_throttle=0.55, max_brake=0.9,
  */
 
 static PyObject *__pyx_pf_10cythoncode_19controller_baseline___defaults__(CYTHON_UNUSED PyObject *__pyx_self) {
@@ -2030,7 +2030,7 @@ static PyObject *__pyx_pf_10cythoncode_19controller_baseline_20VehiclePIDControl
   __Pyx_RefNannySetupContext("__init__", 0);
 
   /* "cythoncode/controller_baseline.pyx":22
- *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.55, max_brake=0.9,
+ *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.1}, offset=0, max_throttle=0.55, max_brake=0.9,
  *             max_steering=0.5):
  *         self.max_brake = max_brake             # <<<<<<<<<<<<<<
  *         self.max_throt = max_throttle
@@ -2240,7 +2240,7 @@ static PyObject *__pyx_pf_10cythoncode_19controller_baseline_20VehiclePIDControl
  * 
  *     def __init__(self, vehicle, args_lateral={'K_P': 1.45,             # <<<<<<<<<<<<<<
  *                                               'K_I': 0.05, 'K_D': 0.2, 'dt': 0.1}, args_longitudinal={
- *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.55, max_brake=0.9,
+ *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.1}, offset=0, max_throttle=0.55, max_brake=0.9,
  */
 
   /* function exit code */
@@ -6796,7 +6796,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
  * 
  *     def __init__(self, vehicle, args_lateral={'K_P': 1.45,             # <<<<<<<<<<<<<<
  *                                               'K_I': 0.05, 'K_D': 0.2, 'dt': 0.1}, args_longitudinal={
- *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.55, max_brake=0.9,
+ *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.1}, offset=0, max_throttle=0.55, max_brake=0.9,
  */
   __pyx_tuple_ = PyTuple_Pack(8, __pyx_n_s_self, __pyx_n_s_vehicle, __pyx_n_s_args_lateral, __pyx_n_s_args_longitudinal, __pyx_n_s_offset, __pyx_n_s_max_throttle, __pyx_n_s_max_brake, __pyx_n_s_max_steering); if (unlikely(!__pyx_tuple_)) __PYX_ERR(0, 18, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple_);
@@ -7398,7 +7398,7 @@ if (!__Pyx_RefNanny) {
  * 
  *     def __init__(self, vehicle, args_lateral={'K_P': 1.45,             # <<<<<<<<<<<<<<
  *                                               'K_I': 0.05, 'K_D': 0.2, 'dt': 0.1}, args_longitudinal={
- *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.55, max_brake=0.9,
+ *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.1}, offset=0, max_throttle=0.55, max_brake=0.9,
  */
   __pyx_t_2 = __Pyx_CyFunction_New(&__pyx_mdef_10cythoncode_19controller_baseline_20VehiclePIDController_1__init__, 0, __pyx_n_s_VehiclePIDController___init, NULL, __pyx_n_s_cythoncode_controller_baseline, __pyx_d, ((PyObject *)__pyx_codeobj__2)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 18, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
@@ -7416,7 +7416,7 @@ if (!__Pyx_RefNanny) {
   /* "cythoncode/controller_baseline.pyx":20
  *     def __init__(self, vehicle, args_lateral={'K_P': 1.45,
  *                                               'K_I': 0.05, 'K_D': 0.2, 'dt': 0.1}, args_longitudinal={
- *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.03}, offset=0, max_throttle=0.55, max_brake=0.9,             # <<<<<<<<<<<<<<
+ *         'K_P': 1.0, 'K_I': 0.05, 'K_D': 0, 'dt': 0.1}, offset=0, max_throttle=0.55, max_brake=0.9,             # <<<<<<<<<<<<<<
  *             max_steering=0.5):
  *         self.max_brake = max_brake
  */
@@ -7425,7 +7425,7 @@ if (!__Pyx_RefNanny) {
   if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_K_P, __pyx_float_1_0) < 0) __PYX_ERR(0, 20, __pyx_L1_error)
   if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_K_I, __pyx_float_0_05) < 0) __PYX_ERR(0, 20, __pyx_L1_error)
   if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_K_D, __pyx_int_0) < 0) __PYX_ERR(0, 20, __pyx_L1_error)
-  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_dt, __pyx_float_0_03) < 0) __PYX_ERR(0, 20, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_dt, __pyx_float_0_1) < 0) __PYX_ERR(0, 20, __pyx_L1_error)
   __Pyx_CyFunction_Defaults(__pyx_defaults, __pyx_t_2)->__pyx_arg_args_longitudinal = __pyx_t_3;
   __Pyx_GIVEREF(__pyx_t_3);
   __pyx_t_3 = 0;

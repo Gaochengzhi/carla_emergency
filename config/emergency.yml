@@ -17,67 +17,51 @@ area_limit:
 # DebugParameters:
 camera_height: 60
 debug_sp: False
-record: False
-debug_intersection: False
+record: True
+emergency: True
 
-spwan_list:
-  - 136
-  - 135
-  - 173
-  - 176
-  - 295
-  - 294
-  - 153
-  - 154
-target_list:
-  - 86
-  - 85
-  - 101
-  - 100
-  - 11
-  - 12
-  - 41
-  - 42
 
 agents:
   - name: "agent1"
     port: 9561
     type: "vehicle.ford.crown"
-    start_point: 135
-    end_point: 200
-    ignore_traffic_light: False
+    start_point: 101
+    end_point: 61
     main_port: 6000
+    max_speed: 2
     traffic_agent_port: 9981
   - name: "agent2"
     port: 9562
     type: "vehicle.ford.crown"
-    start_point: 136
-    end_point: 199
-    # end_point: 85
-    ignore_traffic_light: False
+    start_point: 100
+    end_point: 61
+    main_port: 6000
+    max_speed: 2
+    traffic_agent_port: 9981
+  - name: "agent3"
+    port: 9563
+    type: "vehicle.ford.crown"
+    start_point: 202
+    end_point: 61
+    main_port: 6000
+    max_speed: 2
+    traffic_agent_port: 9981
+  - name: "agent4"
+    port: 9564
+    type: "vehicle.ford.crown"
+    start_point: 201
+    end_point: 61
+    main_port: 6000
+    max_speed: 2
+    traffic_agent_port: 9981
+  - name: "emergency"
+    port: 9565
+    type: "charger_police"
+    start_point: 21
+    end_point: 61
+    max_speed: 15
     main_port: 6000
     traffic_agent_port: 9981
-  # - name: "agent3"
-  #   port: 9563
-  #   type: "vehicle.ford.crown"
-  #   start_point: 173
-  #   end_point: 101
-  #   main_port: 6000
-  #   traffic_agent_port: 9981
-  # - name: "agent4"
-  #   port: 9564
-  #   type: "vehicle.ford.crown"
-  #   start_point: 176
-  #   end_point: 100
-  #   main_port: 6000
-  #   traffic_agent_port: 9981
-  # - name: "agent5"
-  #   port: 9565
-  #   type: "vehicle.ford.crown"
-  #   start_point: 295
-  #   end_point: 11
-  #   main_port: 6000
-  #   traffic_agent_port: 9981
   # - name: "agent6"
   #   port: 9566
   #   type: "vehicle.ford.crown"
